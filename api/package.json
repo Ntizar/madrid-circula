@@ -1,0 +1,15 @@
+{
+  "name": "madrid-circula-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "API de MADRID CIRCULA: gestión de rutas de recogida de residuos de Madrid. Sin dependencias: node:http + node:sqlite + node:crypto.",
+  "scripts": {
+    "importar": "node importar.js",
+    "arrancar": "node servidor.js",
+    "probar": "node --test pruebas/"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

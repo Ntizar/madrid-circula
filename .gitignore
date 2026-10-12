@@ -13,3 +13,9 @@ __pycache__/
 # Ficheros del sistema
 .DS_Store
 Thumbs.db
+
+# Base de datos generada: 10 MB que se reconstruyen con `node api/importar.js`
+api/madrid-circula.db
+api/*.db-wal
+api/*.db-shm
+api/pruebas.db*
