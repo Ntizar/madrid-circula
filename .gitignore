@@ -1,0 +1,15 @@
+# Madrid Circula — qué NO sube al repositorio
+
+# Datos originales descargados (7 MB): se regeneran con fuentes/01-descargar.py
+crudo/
+
+# Capturas generadas por el arnés de verificación
+captura-*.png
+
+# Restos de Python
+__pycache__/
+*.pyc
+
+# Ficheros del sistema
+.DS_Store
+Thumbs.db

@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="es" data-nz-theme="dark" data-nz-marca="esmeralda">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23111827'/%3E%3Ccircle cx='11' cy='16' r='4.5' fill='%232f9e44'/%3E%3Ccircle cx='21' cy='16' r='4.5' fill='%23f2c200'/%3E%3C/svg%3E">
+<title>Madrid Circula — gemelo digital de la recogida de residuos</title>
+<meta name="description" content="Gemelo digital de la recogida de residuos de Madrid: 44 069 contenedores reales del inventario municipal, 114 meses de tonelaje real y un modelo de llenado calibrado con esos datos.">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/tokens.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/marcas/esmeralda.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p1-layout.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p2-navigation.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p3-typography.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p4-actions.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p5-forms.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p6-feedback.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p8-data.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p12-system.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p13-charts.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<style>
+  /* Solo geometría y el marcador del camión (el color lo pone el JS desde los datos). */
+  #mapa { height: 60vh; min-height: 20rem; }
+  @media (min-width: 960px) { #mapa { height: 74vh; } }
+  .mc-mapa-caja { padding: 0; overflow: hidden; }
+  .mc-panel { position: sticky; top: 0.75rem; }
+  .mc-camion { width: 16px; height: 16px; border-radius: 4px; border: 2px solid currentColor; }
+  .mc-camion::after { content: ""; }
+  .mc-fila-camion { display: flex; align-items: center; gap: 0.5rem; }
+  .mc-camion-hueco { width: 0.75rem; height: 0.75rem; border-radius: 0.2rem; flex: 0 0 auto; }
+  .mc-scroll { overflow-x: auto; }
+  /* 12 meses con un mínimo legible: el scroll se queda dentro del gráfico, no en la página */
+  .mc-scroll .nz-chart-bar__col { min-width: 1.5rem; }
+  /* la barra de herramientas se parte en líneas antes que desbordar (mobile-first: base flex-wrap) */
+  .nz-toolbar { flex-wrap: wrap; }
+</style>
+</head>
+<body class="nz">
+
+<header class="nz-navbar nz-navbar--bordered">
+  <span class="nz-navbar__brand"><i></i>MADRID CIRCULA</span>
+  <nav class="nz-navbar__links">
+    <a href="#red" class="nz-navbar__link">Red</a>
+    <a href="#turnos" class="nz-navbar__link">Turnos</a>
+    <a href="#balance" class="nz-navbar__link">Balance</a>
+    <a href="#metodo" class="nz-navbar__link">Método</a>
+  </nav>
+</header>
+
+<main>
+
+  <!-- ══════════ RESUMEN ══════════ -->
+  <section id="resumen" class="nz-container nz-stack">
+    <div class="nz-stack nz-stack--sm">
+      <div class="nz-cluster nz-cluster--between">
+        <h1 class="nz-h1 nz-h1--tight">El latido de los residuos de Madrid, contenedor a contenedor</h1>
+        <span class="nz-badge nz-badge--neutral">datos abiertos · CC-BY 4.0</span>
+      </div>
+      <p class="nz-lead nz-lead--sm">
+        Gemelo digital de la red de recogida: <strong>44 069 recipientes</strong> del inventario municipal
+        (actualizado a 3 de marzo de 2026), <strong>114 meses</strong> de tonelaje real por distrito y fracción,
+        y un modelo de llenado calibrado con esos mismos datos. Lo real va etiquetado; lo estimado, también.
+      </p>
+      <div class="nz-cluster nz-cluster--compact">
+        <span class="nz-badge nz-badge--outline nz-badge--sm">Inventario 300276 · 03-03-2026</span>
+        <span class="nz-badge nz-badge--outline nz-badge--sm">Tonelaje 300143 · 2017-01 → 2026-06</span>
+        <span class="nz-badge nz-badge--outline nz-badge--sm">Ayuntamiento de Madrid</span>
+      </div>
+    </div>
+
+    <section class="nz-dash-grid nz-dash-grid--4" aria-label="Cifras clave" id="kpis-cabecera">
+      <div class="nz-kpi">
+        <span class="nz-kpi__label">Recipientes en vía pública</span>
+        <span class="nz-kpi__value" id="k-cont">—</span>
+        <span class="nz-kpi__delta nz-kpi__delta--flat">147 descartados por coordenada inválida</span>
+      </div>
+      <div class="nz-kpi">
+        <span class="nz-kpi__label">Puntos de recogida</span>
+        <span class="nz-kpi__value" id="k-islas">—</span>
+        <span class="nz-kpi__delta nz-kpi__delta--flat" id="k-ratio">—</span>
+      </div>
+      <div class="nz-kpi">
+        <span class="nz-kpi__label">Toneladas recogidas en 2025</span>
+        <span class="nz-kpi__value nz-kpi__value--brand" id="k-t2025">—</span>
+        <span class="nz-kpi__delta nz-kpi__delta--flat" id="k-t2026">—</span>
+      </div>
+      <div class="nz-kpi">
+        <span class="nz-kpi__label">Generación diaria (calle)</span>
+        <span class="nz-kpi__value" id="k-kgdia">—</span>
+        <span class="nz-kpi__delta nz-kpi__delta--flat">5 fracciones de contenedor</span>
+      </div>
+    </section>
+
+    <noscript>
+      <div class="nz-alert nz-alert--info">
+        <div class="nz-alert__body">
+          <span class="nz-alert__title">Mapa e interacción necesitan JavaScript</span>
+          <span class="nz-alert__msg">Los números siguen siendo ciertos: 44 069 recipientes inventariados en 14 282 puntos de recogida;
+          1 187 170 toneladas recogidas en 2025 y 610 163 en el primer semestre de 2026, según los datos abiertos del
+          Ayuntamiento de Madrid (datasets 300276 y 300143, licencia CC-BY 4.0).</span>
+        </div>
+      </div>
+    </noscript>
+  </section>
+
+  <!-- ══════════ RED / MAPA ══════════ -->
+  <section id="red" class="nz-container nz-stack">
+    <div class="nz-cluster nz-cluster--between">
+      <h2 class="nz-h2 nz-h2--brand">La red</h2>
+      <span class="nz-nota">Filtra, cambia de vista y pincha cualquier contenedor del mapa</span>
+    </div>
+
+    <div class="nz-dash-grid nz-dash-grid--sidebar">
+      <!-- lienzo -->
+      <div class="nz-article nz-article--bordered mc-mapa-caja">
+        <div class="nz-toolbar">
+          <div class="nz-toolbar__group">
+            <span class="nz-segmented" id="seg-vista" role="tablist" aria-label="Vista del mapa">
+              <button class="nz-btn nz-btn--sm is-active" data-vista="red">Fracción</button>
+              <button class="nz-btn nz-btn--sm" data-vista="llenado">Llenado</button>
+              <button class="nz-btn nz-btn--sm" data-vista="turnos">Turnos</button>
+            </span>
+          </div>
+          <span class="nz-toolbar__spacer"></span>
+          <div class="nz-toolbar__group">
+            <span class="nz-badge nz-badge--brand" id="badge-visibles">—</span>
+            <button class="nz-btn nz-btn--ghost nz-btn--sm" id="btn-centrar">Centrar en Madrid</button>
+          </div>
+        </div>
+        <div id="mapa" role="application" aria-label="Mapa de contenedores de Madrid"></div>
+        <div class="nz-toolbar">
+          <div class="nz-toolbar__group" id="leyenda-mapa"></div>
+          <span class="nz-toolbar__spacer"></span>
+          <span class="nz-nota" id="escala-llenado"></span>
+        </div>
+      </div>
+
+      <!-- panel -->
+      <aside class="nz-stack nz-stack--sm mc-panel">
+        <div class="nz-tabs" role="tablist" aria-label="Panel de control">
+          <button class="nz-tabs__tab" aria-selected="true" data-panel="red">Red</button>
+          <button class="nz-tabs__tab" aria-selected="false" data-panel="llenado">Llenado</button>
+          <button class="nz-tabs__tab" aria-selected="false" data-panel="turnos">Turnos</button>
+          <button class="nz-tabs__tab" aria-selected="false" data-panel="ficha">Ficha</button>
+        </div>
+
+        <!-- panel RED -->
+        <div class="nz-tabs__panel nz-stack nz-stack--sm" id="panel-red">
+          <fieldset class="nz-fieldset">
+            <legend class="nz-fieldset__leyenda">Fracción</legend>
+            <div class="nz-cluster nz-cluster--compact" id="chips-fraccion"></div>
+          </fieldset>
+          <div class="nz-formgrid nz-formgrid--2">
+            <label class="nz-field">
+              <span class="nz-field__label">Distrito</span>
+              <select class="nz-select" id="sel-distrito"></select>
+            </label>
+            <label class="nz-field">
+              <span class="nz-field__label">Lote de concesión</span>
+              <select class="nz-select" id="sel-lote"></select>
+            </label>
+          </div>
+          <label class="nz-field">
+            <span class="nz-field__label">Tipo de carga del recipiente</span>
+            <select class="nz-select" id="sel-carga"></select>
+          </label>
+          <div class="nz-callout nz-callout--note" id="resumen-filtro">—</div>
+        </div>
+
+        <!-- panel LLENADO -->
+        <div class="nz-tabs__panel nz-stack nz-stack--sm" id="panel-llenado" hidden>
+          <p class="nz-nota">
+            El llenado no es dato público: los 11 100 sensores de nivel que Madrid instaló desde 2023 alimentan
+            una plataforma privada. Aquí se <strong>estima</strong> con el tonelaje real de cada distrito y la
+            capacidad real de cada modelo de contenedor.
+          </p>
+          <label class="nz-field">
+            <span class="nz-field__label">Horas desde la última recogida</span>
+            <input class="nz-range" type="range" id="rango-horas" min="0" max="168" step="1" value="36">
+            <span class="nz-field__help" id="ayuda-horas">36 h</span>
+          </label>
+          <span class="nz-switch">
+            <input type="checkbox" id="sw-demanda"><span class="nz-switch__track"><span class="nz-switch__thumb"></span></span>
+            <span class="nz-switch__label">Vaciar solo a demanda (umbral 80 %)</span>
+          </span>
+          <div class="nz-dash-grid nz-dash-grid--2">
+            <div class="nz-kpi nz-kpi--sm">
+              <span class="nz-kpi__label">Recipientes por encima del 80 %</span>
+              <span class="nz-kpi__value nz-kpi__value--brand" id="k-llenos">—</span>
+            </div>
+            <div class="nz-kpi nz-kpi--sm">
+              <span class="nz-kpi__label">Llenado medio</span>
+              <span class="nz-kpi__value" id="k-llenado-medio">—</span>
+            </div>
+          </div>
+          <div id="tabla-llenos-wrap" class="nz-table-wrap nz-table-wrap--apilable">
+            <div class="nz-table__toolbar">
+              <span class="nz-table__strong">Los 8 puntos más llenos</span>
+              <span class="nz-badge nz-badge--warning" id="badge-llenos">—</span>
+            </div>
+            <table class="nz-table nz-table--apilable nz-table--striped nz-table--sm">
+              <thead><tr><th>Punto</th><th>Fracción</th><th class="nz-table__num">Llenado</th></tr></thead>
+              <tbody id="cuerpo-llenos"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- panel TURNOS -->
+        <div class="nz-tabs__panel nz-stack nz-stack--sm" id="panel-turnos" hidden>
+          <p class="nz-nota">
+            Un turno es una jornada de un camión: arranca en el punto de recogida más próximo al centroide del
+            distrito (no conocemos las cocheras del operador), visita puntos hasta llenar la caja y vuelve a
+            empezar otro camión. El kg que carga cada parada sale del tonelaje real del distrito.
+          </p>
+          <div class="nz-formgrid nz-formgrid--2">
+            <label class="nz-field">
+              <span class="nz-field__label">Fracción a recoger</span>
+              <select class="nz-select" id="sel-frac-turno"></select>
+            </label>
+            <label class="nz-field">
+              <span class="nz-field__label">Distrito</span>
+              <select class="nz-select" id="sel-dist-turno"></select>
+            </label>
+            <label class="nz-field">
+              <span class="nz-field__label">Camiones (turnos)</span>
+              <select class="nz-select" id="sel-camiones"></select>
+            </label>
+            <label class="nz-field">
+              <span class="nz-field__label">Capacidad de caja (kg)</span>
+              <input class="nz-input" type="number" id="inp-capacidad" min="500" step="100">
+            </label>
+          </div>
+          <div class="nz-cluster nz-cluster--compact">
+            <button class="nz-btn nz-btn--primary" id="btn-planificar">Planificar turno</button>
+            <button class="nz-btn nz-btn--ghost" id="btn-animar" disabled>Ver camiones</button>
+          </div>
+          <div id="aviso-turno"></div>
+          <div id="kpis-turno" class="nz-dash-grid nz-dash-grid--2"></div>
+        </div>
+
+        <!-- panel FICHA -->
+        <div class="nz-tabs__panel nz-stack nz-stack--sm" id="panel-ficha" hidden>
+          <div id="ficha-sitio">
+            <div class="nz-empty">
+              <div class="nz-empty__body">
+                <span class="nz-empty__title">Ningún punto seleccionado</span>
+                <span class="nz-empty__body">Pincha un contenedor en el mapa para ver la ficha del punto de recogida.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ══════════ TURNOS (detalle) ══════════ -->
+  <section id="turnos" class="nz-container nz-stack">
+    <div class="nz-cluster nz-cluster--between">
+      <h2 class="nz-h2 nz-h2--brand">Turnos planificados</h2>
+      <span class="nz-nota">Kilogramos por recorrido y fracción, con la geometría real de los puntos</span>
+    </div>
+    <div id="detalle-turnos">
+      <div class="nz-empty nz-empty--bordered">
+        <div class="nz-empty__body">
+          <span class="nz-empty__title">Todavía no hay ningún turno</span>
+          <span class="nz-empty__body">Ve al panel de <strong>Turnos</strong> del mapa, elige fracción y distrito, y pulsa «Planificar turno».</span>
+          <span class="nz-empty__action"><a class="nz-btn nz-btn--soft nz-btn--sm" href="#red">Ir al planificador</a></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ BALANCE ══════════ -->
+  <section id="balance" class="nz-container nz-stack">
+    <div class="nz-cluster nz-cluster--between">
+      <h2 class="nz-h2 nz-h2--brand">Balance del sistema</h2>
+      <div class="nz-cluster nz-cluster--compact">
+        <label class="nz-field nz-field--inline nz-field--compact mc-fila-camion">
+          <span class="nz-field__label">Año</span>
+          <select class="nz-select nz-select--sm" id="sel-anio"></select>
+        </label>
+      </div>
+    </div>
+
+    <section class="nz-dash-grid nz-dash-grid--4" aria-label="Cifras del balance">
+      <div class="nz-kpi">
+        <span class="nz-kpi__label">Toneladas del año elegido</span>
+        <span class="nz-kpi__value" id="k-anio">—</span>
+        <span class="nz-kpi__delta nz-kpi__delta--flat" id="k-anio-vs">—</span>
+      </div>
+      <div class="nz-kpi">
+        <span class="nz-kpi__label">Recogida selectiva</span>
+        <span class="nz-kpi__value nz-kpi__value--brand" id="k-selectiva">—</span>
+        <span class="nz-kpi__delta nz-kpi__delta--flat">orgánica + envases + papel + vidrio</span>
+      </div>
+      <div class="nz-kpi">
+        <span class="nz-kpi__label">Capacidad instalada</span>
+        <span class="nz-kpi__value" id="k-litros">—</span>
+        <span class="nz-kpi__delta nz-kpi__delta--flat">litros en vía pública</span>
+      </div>
+      <div class="nz-kpi">
+        <span class="nz-kpi__label">Carga media por punto</span>
+        <span class="nz-kpi__value" id="k-porisla">—</span>
+        <span class="nz-kpi__delta nz-kpi__delta--flat">kg al día por punto de recogida</span>
+      </div>
+    </section>
+
+    <div class="nz-dash-grid nz-dash-grid--2">
+      <figure class="nz-chart">
+        <div class="nz-chart__head">
+          <div>
+            <span class="nz-chart__title">Toneladas por mes y fracción</span>
+            <span class="nz-chart__sub" id="sub-serie">—</span>
+          </div>
+        </div>
+        <div class="nz-chart__body mc-scroll" id="serie-mensual"></div>
+        <figcaption class="nz-chart__source">Datos abiertos 300143 · la barra es el volumen del mes; cada tramo, una fracción.</figcaption>
+      </figure>
+
+      <figure class="nz-chart">
+        <div class="nz-chart__head">
+          <div>
+            <span class="nz-chart__title">Composición de la recogida</span>
+            <span class="nz-chart__sub" id="sub-donut">—</span>
+          </div>
+        </div>
+        <div class="nz-chart__body">
+          <div class="nz-chart-donut">
+            <svg class="nz-chart-donut__svg" viewBox="0 0 42 42" role="img" aria-label="Reparto por fracciones" id="donut-svg">
+              <circle class="nz-chart-donut__track" cx="21" cy="21" r="15.9"></circle>
+              <g id="donut-segs"></g>
+            </svg>
+            <div class="nz-chart-donut__center">
+              <span class="nz-chart-donut__value" id="donut-total">—</span>
+              <span class="nz-chart-donut__label">toneladas</span>
+            </div>
+          </div>
+          <div class="nz-legend nz-legend--vertical" id="donut-leyenda"></div>
+        </div>
+        <figcaption class="nz-chart__source">Los 5 flujos de contenedor de calle. Los residuos de gestión especial van aparte, más abajo.</figcaption>
+      </figure>
+    </div>
+
+    <div class="nz-dash-grid nz-dash-grid--2">
+      <figure class="nz-chart">
+        <div class="nz-chart__head">
+          <div>
+            <span class="nz-chart__title">Toneladas por distrito</span>
+            <span class="nz-chart__sub" id="sub-distritos">—</span>
+          </div>
+        </div>
+        <div class="nz-chart__body">
+          <div class="nz-chart-tablebar" id="tabla-distritos"></div>
+        </div>
+        <figcaption class="nz-chart__source">Todo el residuo recogido en cada distrito, sumando las 5 fracciones de contenedor.</figcaption>
+      </figure>
+
+      <figure class="nz-chart">
+        <div class="nz-chart__head">
+          <div>
+            <span class="nz-chart__title">Intensidad mes a mes</span>
+            <span class="nz-chart__sub" id="sub-heat">—</span>
+          </div>
+        </div>
+        <div class="nz-chart__body mc-scroll" id="heatmap"></div>
+        <figcaption class="nz-chart__source">Cada fila es una fracción y cada celda un mes: más oscuro, más toneladas.</figcaption>
+      </figure>
+    </div>
+
+    <figure class="nz-chart">
+      <div class="nz-chart__head">
+        <div>
+          <span class="nz-chart__title">Evolución anual, 2017 → 2026</span>
+          <span class="nz-chart__sub">El total recogido y la recogida selectiva, año a año</span>
+        </div>
+      </div>
+      <div class="nz-chart__body">
+        <div class="nz-chart-line nz-chart-line--lg nz-chart-line--multi">
+          <svg class="nz-chart-line__svg" viewBox="0 0 300 100" preserveAspectRatio="none" role="img" aria-label="Evolución anual de toneladas">
+            <path class="nz-chart-line__area" id="linea-area" d=""></path>
+            <path class="nz-chart-line__path" id="linea-total" d=""></path>
+            <path class="nz-chart-line__path nz-chart-line__path--accent" id="linea-selectiva" d=""></path>
+          </svg>
+        </div>
+      </div>
+      <div class="nz-legend">
+        <span class="nz-legend__item"><i class="nz-legend__swatch nz-legend__swatch--brand"></i>Total recogido</span>
+        <span class="nz-legend__item"><i class="nz-legend__swatch nz-legend__swatch--accent"></i>Recogida selectiva</span>
+      </div>
+      <figcaption class="nz-chart__source">2026 llega hasta junio: su año está incompleto a propósito, sin inventar el resto.</figcaption>
+    </figure>
+
+    <div class="nz-dash-grid nz-dash-grid--2">
+      <div class="nz-table-wrap nz-table-wrap--apilable">
+        <div class="nz-table__toolbar">
+          <span class="nz-table__strong">Las 5 fracciones de contenedor</span>
+          <span class="nz-badge nz-badge--brand" id="badge-fracciones">—</span>
+        </div>
+        <table class="nz-table nz-table--apilable nz-table--striped">
+          <thead>
+            <tr>
+              <th>Fracción</th>
+              <th class="nz-table__num">Contenedores</th>
+              <th class="nz-table__num">Litros</th>
+              <th class="nz-table__num">kg/día por cubo</th>
+              <th class="nz-table__num">Vaciados/sem necesarios</th>
+              <th class="nz-table__num">Servicio actual</th>
+              <th class="nz-table__num">Holgura</th>
+            </tr>
+          </thead>
+          <tbody id="cuerpo-fracciones"></tbody>
+        </table>
+        <div class="nz-table__foot"><span>Tonelaje del distrito entre contenedores reales del distrito</span></div>
+      </div>
+
+      <div class="nz-stack nz-stack--sm">
+        <div class="nz-table-wrap nz-table-wrap--apilable">
+          <div class="nz-table__toolbar">
+            <span class="nz-table__strong">Lotes de concesión</span>
+            <span class="nz-badge nz-badge--neutral" id="badge-lotes">—</span>
+          </div>
+          <table class="nz-table nz-table--apilable nz-table--striped">
+            <thead><tr><th>Lote</th><th class="nz-table__num">Contenedores</th><th class="nz-table__num">t en 2025</th><th class="nz-table__num">kg por cubo y año</th></tr></thead>
+            <tbody id="cuerpo-lotes"></tbody>
+          </table>
+          <div class="nz-table__foot"><span>Tres lotes de contenerización, recogida y transporte</span></div>
+        </div>
+
+        <div class="nz-table-wrap nz-table-wrap--apilable">
+          <div class="nz-table__toolbar">
+            <span class="nz-table__strong">Otros flujos de residuo</span>
+            <span class="nz-badge nz-badge--neutral">2025 y 1S-2026</span>
+          </div>
+          <table class="nz-table nz-table--apilable nz-table--striped nz-table--sm">
+            <thead><tr><th>Residuo</th><th class="nz-table__num">2025 (t)</th><th class="nz-table__num">1S-2026 (t)</th></tr></thead>
+            <tbody id="cuerpo-otros"></tbody>
+          </table>
+          <div class="nz-table__foot"><span>Escombros, clínicos, puntos limpios, ropa y compañía</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ MÉTODO ══════════ -->
+  <section id="metodo" class="nz-container nz-stack">
+    <div class="nz-cluster nz-cluster--between">
+      <h2 class="nz-h2 nz-h2--brand">Método: qué es real y qué es modelo</h2>
+      <span class="nz-badge nz-badge--success">21 comprobaciones superadas</span>
+    </div>
+
+    <div class="nz-dash-grid nz-dash-grid--2">
+      <div class="nz-article nz-article--bordered">
+        <h3 class="nz-h3">Real, dato a dato</h3>
+        <ul class="nz-stack nz-stack--2xs">
+          <li>Los <strong>44 069 recipientes</strong> con su fracción, modelo, lote, distrito, tipo de carga y coordenada: inventario municipal 300276, cerrado a 3 de marzo de 2026.</li>
+          <li>La <strong>capacidad de cada cubo</strong> (800, 2 750 o 3 100 litros) no está en una columna: va en el nombre del modelo homologado, y se lee de ahí.</li>
+          <li>Las <strong>toneladas</strong> de 2017 a junio de 2026, por mes, distrito, lote y tipo de residuo: dataset 300143.</li>
+          <li>Los 14 282 <strong>puntos de recogida</strong>: el código de situado del inventario, que agrupa los cubos de la misma isla.</li>
+          <li>La <strong>frecuencia de vaciado publicada</strong> (papel-cartón 3/semana, vidrio 2/mes) viene de los indicadores oficiales de gestión ambiental urbana.</li>
+        </ul>
+      </div>
+      <div class="nz-article nz-article--bordered">
+        <h3 class="nz-h3">Modelo, y por qué</h3>
+        <ul class="nz-stack nz-stack--2xs">
+          <li><strong>Llenado</strong>: kg/día de cada distrito y fracción (real) repartidos entre los cubos reales de ese distrito, sobre la capacidad real de cada modelo. Es una estimación calibrada, no una medida.</li>
+          <li><strong>Densidad aparente</strong> del residuo suelto (kg/litro de recipiente): resto 0,30 · PMB 0,045 · papel-cartón 0,12 · orgánica 0,45 · vidrio 0,50. Hipótesis técnica declarada.</li>
+          <li><strong>Rutas</strong>: heurístico de vecino más cercano con mejora 2-opt sobre la geometría real de los puntos. No son las rutas del operador.</li>
+          <li><strong>Tiempos</strong>: 16 km/h de media urbana y 95 s por parada, más un 35 % de rodeo sobre la distancia en línea recta.</li>
+          <li><strong>Frecuencia del servicio</strong> para resto, orgánica y PMB: recogida diaria declarada, no publicada en estos datasets.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="nz-callout nz-callout--warn">
+      Lo que <strong>no</strong> es público y por tanto no aparece aquí: la medida real del llenado (los 11 100 sensores
+      de la plataforma municipal alimentan un sistema privado) y las rutas reales de los camiones. Tampoco el parque de
+      cubos domiciliarios que se recogen puerta a puerta: el inventario recoge los recipientes de vía pública, así que
+      el tonelaje de un distrito incluye residuo que no pasa por estos cubos de calle.
+    </div>
+
+    <div class="nz-alert nz-alert--info">
+      <div class="nz-alert__body">
+        <span class="nz-alert__title">Hallazgo: el servicio vacía bastante más de lo que la generación exige</span>
+        <span class="nz-alert__msg">
+          Con el tonelaje real de abril a junio de 2026, un cubo de papel-cartón necesitaría vaciarse 0,52 veces por
+          semana para no llenarse; el servicio lo vacía 3 veces. Esa holgura es justo la que la medición de llenado
+          permite recortar —y es la razón por la que Madrid instaló los sensores—. Ojo a la lectura inversa: también
+          puede significar que parte de ese flujo no llega a los cubos de calle. El detalle por fracción está en la
+          tabla del balance.
+        </span>
+      </div>
+    </div>
+
+    <div class="nz-dash-grid nz-dash-grid--2">
+      <div class="nz-article nz-article--bordered">
+        <h3 class="nz-h3">Fuentes</h3>
+        <ul class="nz-stack nz-stack--2xs">
+          <li><a href="https://datos.madrid.es/dataset/300276-0-contenedor-papel-carton-todos">Inventario municipal de contenedores</a> <span class="nz-nota">dataset 300276</span></li>
+          <li><a href="https://datos.madrid.es/dataset/300143-0-recogida-residuos">Recogida de residuos</a> <span class="nz-nota">dataset 300143</span></li>
+          <li><a href="https://presupuestosabiertos.madrid.es/es/programas/16210/gestion-ambiental-urbana">Indicadores de gestión ambiental urbana</a> <span class="nz-nota">presupuestosabiertos.madrid.es</span></li>
+          <li>Fracciones y colores de los recipientes: Ordenanza 12/2022 de Limpieza de los Espacios Públicos y Gestión de Residuos.</li>
+          <li>Cartografía base: Esri Dark Gray Canvas. Interfaz: Aurora v8.3.0. Motor de mapa: MapLibre GL JS.</li>
+        </ul>
+      </div>
+      <div class="nz-article nz-article--bordered">
+        <h3 class="nz-h3">Verificación y trazabilidad</h3>
+        <ul class="nz-stack nz-stack--2xs">
+          <li><strong>21 comprobaciones</strong> automáticas sobre los ficheros publicados: recuentos, sumas por fracción y por distrito, coherencia de máscaras de isla y referencias cruzadas.</li>
+          <li>Los totales anuales se recalculan y se comparan con el sumatorio independiente de los CSV originales: <strong>1 187 170 t en 2025</strong> y <strong>610 163 t en el primer semestre de 2026</strong>, coincidiendo al kilogramo.</li>
+          <li>El dataset se reconstruye entero con <span class="nz-atajo-teclado">python3 fuentes/02-construir.py</span> y se comprueba con <span class="nz-atajo-teclado">03-verificar.py</span>.</li>
+          <li>Descartes declarados: 180 recipientes con coordenada fuera del término municipal y 2 sin fracción. Quedan fuera.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="nz-footer nz-footer--compact">
+  Hecho con ❤️ por David Antizar
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+/* Madrid Circula · gemelo digital de la recogida de residuos de Madrid
+   Datos: datos/red.json (inventario 300276) y datos/toneladas.json (300143).
+   Todo lo que la web enseña sale de esos dos ficheros; los parámetros del modelo
+   van declarados en la pestaña «Método». */
+(function () {
+  "use strict";
+
+  var RED = null, TON = null, mapa = null, listo = false;
+  var EST = { vista: "red", h: 36, demanda: false, frac: null, distrito: "", lote: "", carga: "", isla: null, rutas: [], anim: null };
+  var CAP_FRACCION = {}, FRACCIONES = [], COLORES = [], DISTRITOS = [], LOTES = [], CARGAS = [], MODELOS = [], LITROS = [], ISLAS = [], PUNTOS = [], RATE = [];
+
+  var nf = function (n, d) { return (n === null || n === undefined || isNaN(n)) ? "—" : Number(n).toLocaleString("es-ES", { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 }); };
+  var ROL = {};   /* color resuelto en tiempo de ejecución desde los datos */
+  var CLASES_CELDA = ["nz-heatmap__cell--0", "nz-heatmap__cell--1", "nz-heatmap__cell--2", "nz-heatmap__cell--3", "nz-heatmap__cell--4"];
+  var BADGE_PROCEDENCIA = { publicado: "nz-badge--success", declarado: "nz-badge--neutral" };
+
+  /* los colores de fracción salen del inventario; los de la escala de llenado, del propio modelo */
+  function pintarSwatches(raiz) {
+    var nodos = raiz.querySelectorAll("[data-rol]");
+    for (var i = 0; i < nodos.length; i++) {
+      var c = ROL[nodos[i].getAttribute("data-rol")];
+      if (c) nodos[i].style.background = c;
+    }
+  }
+
+  /* ─────────── arranque ─────────── */
+  Promise.all([
+    fetch("datos/red.json").then(function (r) { if (!r.ok) throw new Error("red.json: HTTP " + r.status); return r.json(); }),
+    fetch("datos/toneladas.json").then(function (r) { if (!r.ok) throw new Error("toneladas.json: HTTP " + r.status); return r.json(); })
+  ]).then(function (res) {
+    RED = res[0]; TON = res[1];
+    preparar();
+    var cargando = document.querySelectorAll(".nz-spinner");
+    for (var i = 0; i < cargando.length; i++) cargando[i].remove();
+  }).catch(function (e) {
+    var aviso = document.getElementById("aviso-turno");
+    aviso.innerHTML = '<div class="nz-alert nz-alert--danger"><div class="nz-alert__body">' +
+      '<span class="nz-alert__title">No se han podido preparar los datos</span>' +
+      '<span class="nz-alert__msg">' + e.message + ". Si has abierto el fichero con file://, sirve la carpeta por " +
+      '<span class="nz-atajo-teclado">python3 -m http.server</span>: el navegador bloquea la lectura de los ficheros locales.</span></div></div>';
+  });
+
+  function preparar() {
+    FRACCIONES = RED.fracciones; COLORES = RED.colores; DISTRITOS = RED.distritos;
+    LOTES = RED.lotes; CARGAS = RED.cargas; MODELOS = RED.modelos; LITROS = RED.litros;
+    ISLAS = RED.islas; PUNTOS = RED.puntos;
+    var dens = TON.modelo.densidades_kg_l, capMedia = TON.modelo.capacidad_media_litros;
+    FRACCIONES.forEach(function (f, i) { CAP_FRACCION[f] = 0; });
+    FRACCIONES.forEach(function (f, i) { ROL["frac-" + i] = COLORES[i]; });
+    ROL["escala-bajo"] = "#1f3a52"; ROL["escala-media"] = "#7fb069"; ROL["escala-alto"] = "#d64545";
+
+    /* tasa de llenado por contenedor (% por hora) = kg/hora ÷ capacidad del cubo */
+    RATE = new Float32Array(PUNTOS.length);
+    for (var k = 0; k < PUNTOS.length; k++) {
+      var p = PUNTOS[k], isla = ISLAS[p[0]], frac = FRACCIONES[p[1]];
+      var kgDia = (TON.modelo.kg_dia_por_contenedor[isla[3]] || {})[frac];
+      if (kgDia === undefined) kgDia = 0;
+      var litros = LITROS[p[3]] || (capMedia[frac] || 1000);
+      var capKg = litros * dens[frac];
+      RATE[k] = capKg > 0 ? (100 * (kgDia / 24) / capKg) : 0;
+    }
+    /* media por fracción para los cubos sin capacidad declarada */
+    var acum = {}, n = {};
+    FRACCIONES.forEach(function (f) { acum[f] = 0; n[f] = 0; });
+    for (var j = 0; j < PUNTOS.length; j++) {
+      var fr = FRACCIONES[PUNTOS[j][1]];
+      if (RATE[j] > 0) { acum[fr] += RATE[j]; n[fr]++; }
+    }
+    FRACCIONES.forEach(function (f, i) { CAP_FRACCION[f] = n[f] ? acum[f] / n[f] : 0; });
+    for (var m = 0; m < PUNTOS.length; m++) if (!(RATE[m] > 0)) RATE[m] = CAP_FRACCION[FRACCIONES[PUNTOS[m][1]]];
+
+    pintarKpisCabecera();
+    montarControles();
+    initMapa();
+    pintarBalance();
+  }
+
+  /* ─────────── KPIs de cabecera ─────────── */
+  function pintarKpisCabecera() {
+    var cont = RED.resumen.contenedores, islas = ISLAS.length;
+    document.getElementById("k-cont").textContent = nf(cont);
+    document.getElementById("k-islas").textContent = nf(islas);
+    document.getElementById("k-ratio").textContent = nf(cont / islas, 2) + " recipientes por punto";
+    var t2025 = 0, t2026 = 0;
+    Object.keys(TON.anual).forEach(function (r) {
+      t2025 += TON.anual[r]["2025"] || 0;
+      t2026 += TON.anual[r]["2026"] || 0;
+    });
+    document.getElementById("k-t2025").textContent = nf(t2025 / 1e6, 2) + " M t";
+    document.getElementById("k-t2026").textContent = nf(t2026 / 1000, 0) + " mil t en el 1S-2026";
+    var kg = 0;
+    FRACCIONES.forEach(function (f) { kg += TON.modelo.kg_dia_ciudad[f] || 0; });
+    document.getElementById("k-kgdia").textContent = nf(kg / 1000, 0) + " t/día";
+  }
+
+  /* ─────────── controles ─────────── */
+  /* Rellena un <select>. textoVacio = rótulo de la opción «sin filtrar» (o null). */
+  function opciones(sel, valores, textoVacio, conVacio) {
+    var html = conVacio ? '<option value="">' + textoVacio + "</option>" : "";
+    valores.forEach(function (v) { html += '<option value="' + v + '">' + v + "</option>"; });
+    sel.innerHTML = html;
+  }
+
+  function montarControles() {
+    /* chips de fracción */
+    var chips = document.getElementById("chips-fraccion");
+    chips.innerHTML = '<button class="nz-chip is-active" data-frac="">Todas</button>';
+    FRACCIONES.forEach(function (f, i) {
+      chips.innerHTML += '<button class="nz-chip" data-frac="' + i + '">' +
+        '<i class="nz-chip__dot" data-rol="frac-' + i + '"></i>' + f + "</button>";
+    });
+    pintarSwatches(chips);
+    chips.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-frac]"); if (!b) return;
+      var v = b.getAttribute("data-frac");
+      EST.frac = v === "" ? null : parseInt(v, 10);
+      Array.prototype.forEach.call(chips.querySelectorAll(".nz-chip"), function (c) { c.classList.remove("is-active"); });
+      b.classList.add("is-active");
+      aplicar();
+    });
+
+    opciones(document.getElementById("sel-distrito"), DISTRITOS, "Todos los distritos", true);
+    opciones(document.getElementById("sel-lote"), LOTES, "Todos los lotes", true);
+    opciones(document.getElementById("sel-carga"), CARGAS, "Todos los tipos de carga", true);
+    opciones(document.getElementById("sel-dist-turno"), DISTRITOS, null, false);
+    var cam = []; for (var i = 1; i <= 6; i++) cam.push(i);
+    opciones(document.getElementById("sel-camiones"), cam, null, false);
+    document.getElementById("sel-camiones").value = "3";
+    var sf = document.getElementById("sel-frac-turno");
+    opciones(sf, FRACCIONES, null, false);
+    sf.addEventListener("change", function () {
+      document.getElementById("inp-capacidad").value = TON.modelo.capacidad_camion_kg[this.value] || 8000;
+    });
+    document.getElementById("inp-capacidad").value = TON.modelo.capacidad_camion_kg[FRACCIONES[0]] || 8000;
+
+    var anios = []; for (var a = 2026; a >= 2017; a--) anios.push(a);
+    opciones(document.getElementById("sel-anio"), anios, null, false);
+    document.getElementById("sel-anio").value = "2025";
+
+    document.getElementById("sel-distrito").addEventListener("change", function () { EST.distrito = this.value; aplicar(); });
+    document.getElementById("sel-lote").addEventListener("change", function () { EST.lote = this.value; aplicar(); });
+    document.getElementById("sel-carga").addEventListener("change", function () { EST.carga = this.value; aplicar(); });
+    document.getElementById("sel-anio").addEventListener("change", function () { pintarSerie(this.value); pintarHeatmap(this.value); pintarAnual(); });
+    document.getElementById("rango-horas").addEventListener("input", function () {
+      EST.h = parseInt(this.value, 10);
+      document.getElementById("ayuda-horas").textContent = EST.h + " h";
+      if (EST.vista === "llenado") { pintarColorLlenado(); pintarPanelLlenado(); }
+    });
+    document.getElementById("sw-demanda").addEventListener("change", function () {
+      EST.demanda = this.checked; pintarPanelLlenado(); pintarColorLlenado();
+    });
+    document.getElementById("btn-centrar").addEventListener("click", function () {
+      mapa.easeTo({ center: [-3.7038, 40.4168], zoom: 11.4, duration: 700 });
+    });
+
+    var seg = document.getElementById("seg-vista");
+    seg.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-vista]"); if (!b) return;
+      cambiarVista(b.getAttribute("data-vista"));
+    });
+    var tabs = document.querySelector(".nz-tabs");
+    tabs.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-panel]"); if (!b) return;
+      var p = b.getAttribute("data-panel");
+      Array.prototype.forEach.call(tabs.querySelectorAll(".nz-tabs__tab"), function (t) {
+        t.setAttribute("aria-selected", t === b ? "true" : "false");
+      });
+      ["red", "llenado", "turnos", "ficha"].forEach(function (nombre) {
+        document.getElementById("panel-" + nombre).hidden = (nombre !== p);
+      });
+      if (p === "llenado") cambiarVista("llenado");
+      if (p === "turnos") cambiarVista("turnos");
+      if (p === "red") cambiarVista("red");
+    });
+    document.getElementById("btn-planificar").addEventListener("click", planificar);
+    document.getElementById("btn-animar").addEventListener("click", animar);
+  }
+
+  /* ─────────── mapa ─────────── */
+  function geojson() {
+    var f = new Array(PUNTOS.length);
+    var idxDist = {}, idxLote = {}, idxCarga = {};
+    DISTRITOS.forEach(function (d, i) { idxDist[d] = i; });
+    LOTES.forEach(function (d, i) { idxLote[d] = i; });
+    CARGAS.forEach(function (d, i) { idxCarga[d] = i; });
+    for (var k = 0; k < PUNTOS.length; k++) {
+      var p = PUNTOS[k], isla = ISLAS[p[0]];
+      f[k] = {
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [isla[2], isla[1]] },
+        properties: { f: p[1], d: idxDist[isla[3]] === undefined ? -1 : idxDist[isla[3]], l: p[2], c: p[4], i: p[0], r: RATE[k] }
+      };
+    }
+    return { type: "FeatureCollection", features: f };
+  }
+
+  function initMapa() {
+    mapa = new maplibregl.Map({
+      container: "mapa",
+      style: {
+        version: 8,
+        sources: {
+          base: {
+            type: "raster", tileSize: 256, maxzoom: 16,
+            tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"],
+            attribution: "© Esri, Maxar, Earthstar Geographics · Datos: Ayuntamiento de Madrid (CC-BY 4.0)"
+          }
+        },
+        layers: [{ id: "base", type: "raster", source: "base" }]
+      },
+      center: [-3.7038, 40.4168], zoom: 11.4, maxZoom: 18, minZoom: 9,
+      dragRotate: false, attributionControl: true
+    });
+    mapa.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+
+    mapa.on("load", function () {
+      mapa.addSource("contenedores", { type: "geojson", data: geojson(), cluster: true, clusterRadius: 42, clusterMaxZoom: 13 });
+      mapa.addSource("rutas", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+
+      mapa.addLayer({
+        id: "c-luva", type: "circle", source: "contenedores",
+        filter: ["has", "point_count"],
+        paint: {
+          "circle-color": ["step", ["get", "point_count"], "#4b5563", 25, "#5b6b7c", 100, "#7d8b9c", 400, "#a5b3c2"],
+          "circle-opacity": 0.85, "circle-stroke-width": 1, "circle-stroke-color": "#0b0f14",
+          "circle-radius": ["step", ["get", "point_count"], 12, 25, 16, 100, 21, 400, 27]
+        }
+      });
+      mapa.addLayer({
+        id: "puntos", type: "circle", source: "contenedores",
+        filter: ["!", ["has", "point_count"]],
+        paint: {
+          "circle-color": pinturaColorFraccion(),
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 1.6, 13, 2.6, 15, 5, 17, 9],
+          "circle-opacity": 0.9, "circle-stroke-width": 0
+        }
+      });
+      mapa.addLayer({
+        id: "rutas-linea", type: "line", source: "rutas",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#34d399", "line-width": ["interpolate", ["linear"], ["zoom"], 10, 2, 15, 5], "line-opacity": 0.9 }
+      });
+      mapa.addLayer({
+        id: "rutas-parada", type: "circle", source: "rutas",
+        filter: ["==", ["geometry-type"], "Point"],
+        paint: { "circle-color": "#0b0f14", "circle-radius": 2.6, "circle-stroke-width": 1.4, "circle-stroke-color": "#34d399" }
+      });
+      mapa.addLayer({
+        id: "foco", type: "circle", source: "contenedores",
+        filter: ["==", ["get", "i"], -1],
+        paint: { "circle-color": "#ffffff", "circle-radius": 9, "circle-opacity": 0.25 }
+      });
+
+      mapa.on("click", "puntos", function (e) {
+        if (e.features && e.features.length) verIsla(e.features[0].properties.i);
+      });
+      mapa.on("click", "c-luva", function (e) {
+        var t = mapa.queryRenderedFeatures(e.point, { layers: ["c-luva"] })[0];
+        if (!t) return;
+        mapa.getSource("contenedores").getClusterExpansionZoom(t.properties.cluster_id, function (err, z) {
+          if (err) return;
+          mapa.easeTo({ center: t.geometry.coordinates, zoom: z });
+        });
+      });
+      mapa.on("mouseenter", "puntos", function () { mapa.getCanvas().style.cursor = "pointer"; });
+      mapa.on("mouseleave", "puntos", function () { mapa.getCanvas().style.cursor = ""; });
+
+      listo = true;
+      aplicar();
+      document.getElementById("btn-planificar").disabled = false;
+    });
+  }
+
+  function pinturaColorFraccion() {
+    var expr = ["match", ["get", "f"]];
+    FRACCIONES.forEach(function (f, i) { expr.push(i, COLORES[i]); });
+    expr.push("#888888");
+    return expr;
+  }
+
+  function pinturaColorLlenado() {
+    var h = EST.demanda ? EST.h : (EST.h % 24 === 0 && EST.h > 0 ? 24 : EST.h);
+    /* la variable get r = %/hora · h → % llenado */
+    return ["interpolate", ["linear"], ["min", 100, ["*", ["get", "r"], h]],
+      0, "#1f3a52", 25, "#2f6f8f", 50, "#7fb069", 70, "#e0b64a", 85, "#e07a3f", 100, "#d64545"];
+  }
+
+  function indicesFiltro() {
+    var idxDist = -1, idxLote = -1, idxCarga = -1, i;
+    if (EST.distrito) for (i = 0; i < DISTRITOS.length; i++) if (DISTRITOS[i] === EST.distrito) idxDist = i;
+    if (EST.lote) for (i = 0; i < LOTES.length; i++) if (LOTES[i] === EST.lote) idxLote = i;
+    if (EST.carga) for (i = 0; i < CARGAS.length; i++) if (CARGAS[i] === EST.carga) idxCarga = i;
+    return [idxDist, idxLote, idxCarga];
+  }
+
+  function filtroActual() {
+    var ix = indicesFiltro(), f = ["all"];
+    if (EST.frac !== null) f.push(["==", ["get", "f"], EST.frac]);
+    if (ix[0] >= 0) f.push(["==", ["get", "d"], ix[0]]);
+    if (ix[1] >= 0) f.push(["==", ["get", "l"], ix[1]]);
+    if (ix[2] >= 0) f.push(["==", ["get", "c"], ix[2]]);
+    return f;
+  }
+
+  function contar() {
+    var ix = indicesFiltro(), res = { puntos: 0, islas: 0, litros: 0, porFrac: {} };
+    FRACCIONES.forEach(function (x) { res.porFrac[x] = 0; });
+    var vistos = {}, k;
+    for (k = 0; k < PUNTOS.length; k++) {
+      var p = PUNTOS[k], isla = ISLAS[p[0]];
+      if (EST.frac !== null && p[1] !== EST.frac) continue;
+      if (ix[0] >= 0 && DISTRITOS.indexOf(isla[3]) !== ix[0]) continue;
+      if (ix[1] >= 0 && p[2] !== ix[1]) continue;
+      if (ix[2] >= 0 && p[4] !== ix[2]) continue;
+      res.puntos++; res.porFrac[FRACCIONES[p[1]]]++; res.litros += LITROS[p[3]] || 0;
+      if (!vistos[p[0]]) { vistos[p[0]] = 1; res.islas++; }
+    }
+    return res;
+  }
+
+  function aplicar() {
+    if (!listo) return;
+    var f = filtroActual(), c = contar();
+    mapa.setFilter("puntos", f.length > 1 ? f : null);
+    mapa.setFilter("c-luva", f.length > 1 ? ["all", ["has", "point_count"], f] : ["has", "point_count"]);
+    document.getElementById("badge-visibles").textContent = nf(c.puntos) + " recipientes · " + nf(c.islas) + " puntos";
+    var detalle = FRACCIONES.filter(function (x) { return c.porFrac[x] > 0; })
+      .map(function (x) { return x + ": " + nf(c.porFrac[x]); }).join(" · ");
+    document.getElementById("resumen-filtro").innerHTML = detalle +
+      '<br>Capacidad de la selección: <strong>' + nf(c.litros) + " litros</strong>";
+    if (EST.vista === "llenado") pintarPanelLlenado();
+  }
+
+  function cambiarVista(v) {
+    EST.vista = v;
+    Array.prototype.forEach.call(document.querySelectorAll("#seg-vista [data-vista]"), function (b) {
+      b.classList.toggle("is-active", b.getAttribute("data-vista") === v);
+    });
+    if (!listo) return;
+    if (v === "turnos") mapa.setPaintProperty("puntos", "circle-color", "#c8d2dc");
+    else if (v === "llenado") pintarColorLlenado();
+    else mapa.setPaintProperty("puntos", "circle-color", pinturaColorFraccion());
+    document.getElementById("escala-llenado").textContent = (v === "llenado")
+      ? "escala: azul = casi vacío · verde = a media carga · rojo = lleno (estimado)" : "";
+    pintarLeyenda();
+  }
+
+  function pintarLeyenda() {
+    var c = document.getElementById("leyenda-mapa"), html = "";
+    if (EST.vista === "llenado") {
+      html = '<span class="nz-legend__item"><i class="nz-legend__swatch" data-rol="escala-bajo"></i>vacío</span>' +
+        '<span class="nz-legend__item"><i class="nz-legend__swatch" data-rol="escala-media"></i>media carga</span>' +
+        '<span class="nz-legend__item"><i class="nz-legend__swatch" data-rol="escala-alto"></i>lleno</span>';
+    } else {
+      FRACCIONES.forEach(function (f, i) {
+        html += '<span class="nz-legend__item"><i class="nz-legend__swatch" data-rol="frac-' + i + '"></i>' + f + "</span>";
+      });
+    }
+    c.innerHTML = html;
+    pintarSwatches(c);
+  }
+
+  /* ─────────── panel llenado ─────────── */
+  function llenadoPunto(k) {
+    var r = RATE[k], h = EST.h;
+    if (!EST.demanda) {
+      /* ciclo de servicio: se vacía cada 168/frecuencia horas */
+      var vec = FRACCIONES[PUNTOS[k][1]], frec = TON.modelo.vaciados_semana_servicio[vec] || 1;
+      var ciclo = 168 / frec;
+      h = ((EST.h % ciclo) + ciclo) % ciclo;
+    } else {
+      h = EST.h;
+    }
+    return Math.min(100, r * h);
+  }
+
+  function pintarColorLlenado() {
+    mapa.setPaintProperty("puntos", "circle-color", pinturaColorLlenado());
+    document.getElementById("escala-llenado").textContent = "escala: azul = casi vacío · verde = a media carga · rojo = lleno (estimado)";
+  }
+
+  function estadisticaLlenado() {
+    var ix = indicesFiltro(), visibles = 0, llenos = 0, suma = 0, filas = [], k;
+    for (k = 0; k < PUNTOS.length; k++) {
+      var p = PUNTOS[k], isla = ISLAS[p[0]];
+      if (EST.frac !== null && p[1] !== EST.frac) continue;
+      if (ix[0] >= 0 && DISTRITOS.indexOf(isla[3]) !== ix[0]) continue;
+      if (ix[1] >= 0 && p[2] !== ix[1]) continue;
+      if (ix[2] >= 0 && p[4] !== ix[2]) continue;
+      var v = llenadoPunto(k);
+      visibles++; suma += v;
+      if (v >= 80) llenos++;
+      filas.push({ v: v, k: k });
+    }
+    return { visibles: visibles, llenos: llenos, medio: visibles ? suma / visibles : 0, filas: filas };
+  }
+
+  function pintarPanelLlenado() {
+    var est = estadisticaLlenado(), visibles = est.visibles;
+    est.filas.sort(function (a, b) { return b.v - a.v; });
+    document.getElementById("k-llenos").textContent = nf(est.llenos);
+    document.getElementById("k-llenado-medio").textContent = visibles ? nf(est.medio, 1) + " %" : "—";
+    document.getElementById("badge-llenos").textContent = nf(est.llenos) + " de " + nf(visibles);
+    var cuerpo = document.getElementById("cuerpo-llenos"), html = "";
+    est.filas.slice(0, 8).forEach(function (x) {
+      var p = PUNTOS[x.k], isla = ISLAS[p[0]];
+      html += "<tr><td>" + isla[0] + " · " + RED.direcciones[isla[4]] + "</td>" +
+        "<td>" + FRACCIONES[p[1]] + "</td>" +
+        '<td class="nz-table__num">' + nf(x.v, 1) + " %</td></tr>";
+    });
+    cuerpo.innerHTML = html || '<tr><td colspan="3">Sin recipientes en esta selección.</td></tr>';
+  }
+
+  /* ─────────── ficha de punto ─────────── */
+  function verIsla(i) {
+    EST.isla = i;
+    if (listo) mapa.setFilter("foco", ["==", ["get", "i"], i]);
+    var isla = ISLAS[i], cubos = [], k;
+    for (k = 0; k < PUNTOS.length; k++) if (PUNTOS[k][0] === i) cubos.push(k);
+    var dist = isla[3], filas = "", litros = 0, kgDia = 0;
+    cubos.sort(function (a, b) { return PUNTOS[a][1] - PUNTOS[b][1]; });
+    cubos.forEach(function (k) {
+      var p = PUNTOS[k], frac = FRACCIONES[p[1]], l = LITROS[p[3]] || 0;
+      var kg = (TON.modelo.kg_dia_por_contenedor[dist] || {})[frac] || 0;
+      var capKg = l * TON.modelo.densidades_kg_l[frac];
+      litros += l; kgDia += kg;
+      filas += "<tr><th scope=\"row\">" + frac + "</th>" +
+        '<td data-etiqueta="Modelo">' + MODELOS[p[3]] + "</td>" +
+        '<td data-etiqueta="Litros" class="nz-table__num">' + nf(l) + "</td>" +
+        '<td data-etiqueta="kg/día" class="nz-table__num">' + nf(kg, 2) + "</td>" +
+        '<td data-etiqueta="Llenado" class="nz-table__num">' + nf(llenadoPunto(k), 1) + " %</td></tr>";
+    });
+    var html = '<div class="nz-stack nz-stack--sm">' +
+      '<div class="nz-cluster nz-cluster--between"><span class="nz-table__strong">' + isla[0] + "</span>" +
+      '<span class="nz-badge nz-badge--brand">' + dist + "</span></div>" +
+      '<span class="nz-nota">' + RED.direcciones[isla[4]] + " · " + isla[1].toFixed(5) + ", " + isla[2].toFixed(5) + "</span>" +
+      '<div class="nz-table-wrap nz-table-wrap--apilable"><table class="nz-table nz-table--apilable nz-table--striped nz-table--sm">' +
+      '<thead><tr><th>Fracción</th><th>Modelo</th><th class="nz-table__num">Litros</th>' +
+      '<th class="nz-table__num">kg/día</th><th class="nz-table__num">Llenado</th></tr></thead><tbody>' + filas + "</tbody></table></div>" +
+      '<div class="nz-cluster nz-cluster--compact"><span class="nz-badge nz-badge--neutral">' + nf(cubos.length) +
+      " cubos</span><span class=\"nz-badge nz-badge--neutral\">" + nf(litros) + " litros</span>" +
+      '<span class="nz-badge nz-badge--neutral">' + nf(kgDia, 1) + " kg/día</span></div></div>";
+    document.getElementById("ficha-sitio").innerHTML = html;
+    var t = document.querySelector('.nz-tabs__tab[data-panel="ficha"]');
+    if (t) t.click();
+  }
+
+  /* ─────────── planificador de turnos ─────────── */
+  function distancia(a, b) {
+    var R = 6371000, rad = Math.PI / 180;
+    var dLat = (b[1] - a[1]) * rad, dLon = (b[2] - a[2]) * rad;
+    var x = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(a[1] * rad) * Math.cos(b[1] * rad) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return 2 * R * Math.asin(Math.sqrt(x));
+  }
+
+  function rutaOptima(islas, indiceIni) {
+    /* r guarda ISLAS (no índices): con un número dentro, distancia() devuelve NaN
+       y la mejora 2-opt nunca se activa. */
+    var r = [islas[indiceIni]], resto = islas.slice(0, indiceIni).concat(islas.slice(indiceIni + 1));
+    while (resto.length) {
+      var ult = r[r.length - 1], mejor = 0, dmin = Infinity, i;
+      for (i = 0; i < resto.length; i++) { var d = distancia(ult, resto[i]); if (d < dmin) { dmin = d; mejor = i; } }
+      r.push(resto.splice(mejor, 1)[0]);
+    }
+    /* 2-opt acotado: mejora la ruta sin eternizarse */
+    var mejorado = true, vueltas = 0;
+    while (mejorado && vueltas < 60 && r.length > 4) {
+      mejorado = false; vueltas++;
+      for (var i2 = 1; i2 < r.length - 2; i2++) {
+        for (var j = i2 + 1; j < r.length - 1; j++) {
+          var d1 = distancia(r[i2 - 1], r[i2]) + distancia(r[j], r[j + 1]);
+          var d2 = distancia(r[i2 - 1], r[j]) + distancia(r[i2], r[j + 1]);
+          if (d2 < d1 - 1) {
+            var tramo = r.slice(i2, j + 1).reverse();
+            r = r.slice(0, i2).concat(tramo, r.slice(j + 1));
+            mejorado = true;
+          }
+        }
+      }
+    }
+    return r;
+  }
+
+  function planificar() {
+    var frac = document.getElementById("sel-frac-turno").value;
+    var dist = document.getElementById("sel-dist-turno").value;
+    var nCam = parseInt(document.getElementById("sel-camiones").value, 10);
+    var capac = parseFloat(document.getElementById("inp-capacidad").value);
+    if (!(capac > 0)) capac = TON.modelo.capacidad_camion_kg[frac] || 8000;
+    var idxFrac = FRACCIONES.indexOf(frac);
+    if (document.getElementById("sel-distrito")) document.getElementById("sel-distrito").value = dist;
+    EST.distrito = dist; EST.frac = idxFrac;
+    if (listo) mapa.setFilter("puntos", ["all", ["==", ["get", "f"], idxFrac], ["==", ["get", "d"], DISTRITOS.indexOf(dist)]]);
+
+    /* islas del distrito con esa fracción, con su kg por cubo */
+    var idxIslas = {}, islas = [], kgPorCubo = [];
+    var kgCubo = TON.modelo.kg_dia_por_contenedor[dist] && TON.modelo.kg_dia_por_contenedor[dist][frac]
+      ? TON.modelo.kg_dia_por_contenedor[dist][frac] : 0;
+    for (var k = 0; k < PUNTOS.length; k++) {
+      var p = PUNTOS[k], isla = ISLAS[p[0]];
+      if (p[1] !== idxFrac) continue;
+      if (isla[3] !== dist) continue;
+      if (idxIslas[p[0]] === undefined) { idxIslas[p[0]] = islas.length; islas.push([isla[0], isla[1], isla[2]]); kgPorCubo.push(0); }
+      kgPorCubo[idxIslas[p[0]]] += kgCubo;
+    }
+    if (islas.length < 3) {
+      document.getElementById("aviso-turno").innerHTML = '<div class="nz-alert nz-alert--warning"><div class="nz-alert__body">' +
+        "<span class=\"nz-alert__title\">Ese distrito no tiene cubos de " + frac + "</span>" +
+        "<span class=\"nz-alert__msg\">Elige otra fracción o otro distrito.</span></div></div>";
+      return;
+    }
+    /* centroide del distrito para arrancar el turno */
+    var cx = 0, cy = 0;
+    islas.forEach(function (i) { cx += i[2]; cy += i[1]; });
+    cx /= islas.length; cy /= islas.length;
+    var ini = 0, dmin = Infinity;
+    islas.forEach(function (i, n2) { var d = distancia([0, cy, cx], [0, i[1], i[2]]); if (d < dmin) { dmin = d; ini = n2; } });
+
+    var orden = rutaOptima(islas, ini), rutas = [], actual = [], kg = 0;
+    for (var i = 0; i < orden.length; i++) {
+      actual.push(orden[i]); kg += kgPorCubo[islas.indexOf(orden[i])] || 0;
+      if (kg >= capac && rutas.length < nCam - 1) { rutas.push({ paradas: actual, kg: kg }); actual = []; kg = 0; }
+    }
+    if (actual.length) rutas.push({ paradas: actual, kg: kg });
+    rutas = rutas.slice(0, nCam);
+
+    var v = TON.modelo.velocidad_media_kmh, seg = TON.modelo.segundos_por_parada;
+    rutas.forEach(function (r, i) {
+      var km = 0;
+      for (var j = 1; j < r.paradas.length; j++) km += distancia(r.paradas[j - 1], r.paradas[j]);
+      km = (km / 1000) * 1.35; /* rodeo declarado sobre la línea recta */
+      r.km = km; r.horas = km / v + (r.paradas.length * seg) / 3600;
+      r.kgl = km > 0 ? r.kg / km : 0; r.ocupacion = 100 * r.kg / capac; r.id = i + 1;
+    });
+    EST.rutas = rutas;
+
+    /* pintar rutas en el mapa */
+    var feats = [];
+    rutas.forEach(function (r) {
+      feats.push({ type: "Feature", geometry: { type: "LineString", coordinates: r.paradas.map(function (p) { return [p[2], p[1]]; }) }, properties: { n: r.id } });
+      r.paradas.forEach(function (p) { feats.push({ type: "Feature", geometry: { type: "Point", coordinates: [p[2], p[1]] }, properties: { n: r.id } }); });
+    });
+    if (listo) mapa.getSource("rutas").setData({ type: "FeatureCollection", features: feats });
+
+    var kgTot = 0, kmTot = 0, parTot = 0;
+    rutas.forEach(function (r) { kgTot += r.kg; kmTot += r.km; parTot += r.paradas.length; });
+    document.getElementById("kpis-turno").innerHTML =
+      kpi("Toneladas del turno", nf(kgTot / 1000, 2) + " t") +
+      kpi("Kilómetros", nf(kmTot, 1) + " km") +
+      kpi("Paradas", nf(parTot)) +
+      kpi("Eficiencia", kmTot > 0 ? nf(kgTot / kmTot, 1) + " kg/km" : "—");
+    document.getElementById("aviso-turno").innerHTML = '<div class="nz-alert nz-alert--success"><div class="nz-alert__body">' +
+      "<span class=\"nz-alert__title\">" + rutas.length + " turnos de " + frac + " en " + dist + "</span>" +
+      "<span class=\"nz-alert__msg\">" + nf(orden.length) + " puntos de recogida visitados a lo largo de la ruta completa, " +
+      "con caja de " + nf(capac) + " kg. Pulsa «Ver camiones» para lanzarlos.</span></div></div>";
+    document.getElementById("btn-animar").disabled = false;
+
+    var filas = "";
+    rutas.forEach(function (r) {
+      filas += "<tr><th scope=\"row\">Camión " + r.id + "</th>" +
+        '<td data-etiqueta="Fracción">' + frac + "</td>" +
+        '<td data-etiqueta="Paradas" class="nz-table__num">' + nf(r.paradas.length) + "</td>" +
+        '<td data-etiqueta="Carga" class="nz-table__num">' + nf(r.kg / 1000, 2) + " t</td>" +
+        '<td data-etiqueta="Ocupación" class="nz-table__num">' + nf(r.ocupacion, 0) + " %</td>" +
+        '<td data-etiqueta="km" class="nz-table__num">' + nf(r.km, 1) + "</td>" +
+        '<td data-etiqueta="Horas" class="nz-table__num">' + nf(r.horas, 1) + " h</td>" +
+        '<td data-etiqueta="kg/km" class="nz-table__num">' + nf(r.kgl, 0) + "</td></tr>";
+    });
+    document.getElementById("detalle-turnos").innerHTML =
+      '<div class="nz-table-wrap nz-table-wrap--apilable"><div class="nz-table__toolbar">' +
+      '<span class="nz-table__strong">Recorrido a recorrido</span>' +
+      '<span class="nz-badge nz-badge--brand">' + frac + " · " + dist + "</span></div>" +
+      '<table class="nz-table nz-table--apilable nz-table--striped"><thead><tr><th>Turno</th><th>Fracción</th>' +
+      '<th class="nz-table__num">Paradas</th><th class="nz-table__num">Carga</th><th class="nz-table__num">Ocupación</th>' +
+      '<th class="nz-table__num">km</th><th class="nz-table__num">Duración</th><th class="nz-table__num">kg/km</th>' +
+      "</tr></thead><tbody>" + filas + "</tbody></table>" +
+      '<div class="nz-table__foot"><span>Velocidad media ' + v + " km/h · " + seg + " s por parada · " +
+      "35 % de rodeo sobre la distancia en línea recta</span></div></div>";
+    if (EST.vista !== "turnos") cambiarVista("turnos");
+  }
+
+  function kpi(etiqueta, valor) {
+    return '<div class="nz-kpi nz-kpi--sm"><span class="nz-kpi__label">' + etiqueta +
+      '</span><span class="nz-kpi__value">' + valor + "</span></div>";
+  }
+
+  /* ─────────── animación de los camiones ─────────── */
+  function animar() {
+    if (!EST.rutas.length || !listo) return;
+    if (EST.anim) { cancelAnimationFrame(EST.anim); EST.anim = null; }
+    var marcadores = EST.rutas.map(function (r) {
+      var el = document.createElement("div");
+      el.className = "mc-camion";
+      el.style.background = "#34d399";
+      el.style.color = "#0b0f14";
+      return new maplibregl.Marker({ element: el }).setLngLat([r.paradas[0][2], r.paradas[0][1]]).addTo(mapa);
+    });
+    var t0 = performance.now(), dur = 24000;
+    var paso = function (t) {
+      var prog = Math.min(1, (t - t0) / dur);
+      EST.rutas.forEach(function (r, n2) {
+        var total = 0, tramos = [], j;
+        for (j = 1; j < r.paradas.length; j++) {
+          var d = distancia(r.paradas[j - 1], r.paradas[j]);
+          total += d; tramos.push(d);
+        }
+        var objetivo = prog * total, acum = 0, seg = 0;
+        while (seg < tramos.length && acum + tramos[seg] < objetivo) { acum += tramos[seg]; seg++; }
+        var a = r.paradas[Math.min(seg, r.paradas.length - 2)], b = r.paradas[Math.min(seg + 1, r.paradas.length - 1)];
+        var f = tramos[seg] > 0 ? (objetivo - acum) / tramos[seg] : 0;
+        f = Math.max(0, Math.min(1, f));
+        marcadores[n2].setLngLat([a[2] + (b[2] - a[2]) * f, a[1] + (b[1] - a[1]) * f]);
+      });
+      if (prog < 1) EST.anim = requestAnimationFrame(paso);
+      else { marcadores.forEach(function (m) { m.remove(); }); EST.anim = null; }
+    };
+    EST.anim = requestAnimationFrame(paso);
+  }
+
+  /* ─────────── balance ─────────── */
+  function seriePorAnio(anio) {
+    var meses = [], i;
+    for (i = 0; i < 12; i++) {
+      var clave = anio + "-" + (i + 1 < 10 ? "0" : "") + (i + 1);
+      var idx = TON.fechas.indexOf(clave);
+      meses.push(idx < 0 ? null : idx);
+    }
+    return meses;
+  }
+
+  function pintarBalance() {
+    var litros = RED.resumen.litros_instalados || 0;
+    document.getElementById("k-litros").textContent = nf(litros / 1e6, 1) + " M litros";
+    var kg = 0, cubos = 0;
+    FRACCIONES.forEach(function (f) { kg += TON.modelo.kg_dia_ciudad[f] || 0; cubos += RED.resumen.por_fraccion[f] || 0; });
+    document.getElementById("k-porisla").textContent = nf((kg * ISLAS.length / cubos) / ISLAS.length * 1, 0) + " kg/día";
+    pintarSerie(document.getElementById("sel-anio").value);
+    pintarDonut();
+    pintarDistritos(document.getElementById("sel-anio").value);
+    pintarHeatmap(document.getElementById("sel-anio").value);
+    pintarAnual();
+    pintarTablas();
+    pintarLeyenda();
+  }
+
+  function pintarKpiAnio(anio) {
+    var total = 0, sel = 0;
+    Object.keys(TON.anual).forEach(function (r) {
+      var v = TON.anual[r][anio] || 0;
+      total += v;
+      if (["ORGANICA", "ENVASES", "PAPEL-CARTON", "VIDRIO"].indexOf(r) >= 0) sel += v;
+    });
+    document.getElementById("k-anio").textContent = nf(total / 1000, 0) + " mil t";
+    document.getElementById("k-selectiva").textContent = nf(100 * sel / total, 1) + " %";
+    var ant = TON.anual["RESTO"][anio - 1];
+    var previo = 0;
+    Object.keys(TON.anual).forEach(function (r) { previo += TON.anual[r][anio - 1] || 0; });
+    var el = document.getElementById("k-anio-vs");
+    if (previo && anio !== "2026") {
+      var varp = 100 * (total - previo) / previo;
+      el.textContent = (varp >= 0 ? "+" : "") + nf(varp, 1) + " % frente a " + (anio - 1);
+    } else {
+      el.textContent = anio === "2026" ? "año en curso, hasta junio" : "";
+    }
+    return total;
+  }
+
+  function pintarSerie(anio) {
+    var indices = seriePorAnio(anio), totales = [], i, j;
+    var FR = ["RESTO", "ORGANICA", "ENVASES", "PAPEL-CARTON", "VIDRIO"];
+    var MAXF = 5;
+    for (i = 0; i < 12; i++) {
+      var t = 0;
+      if (indices[i] !== null) FR.forEach(function (r) { t += (TON.serie[r] || [])[indices[i]] || 0; });
+      totales.push(t);
+    }
+    var max = Math.max.apply(null, totales) || 1;
+    var MESES = ["E", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
+    var html = '<div class="nz-chart-bar nz-chart-bar--stacked">';
+    for (i = 0; i < 12; i++) {
+      var t2 = totales[i];
+      html += '<div class="nz-chart-bar__col"><span class="nz-chart-bar__value">' + (t2 ? nf(t2 / 1000, 0) : "") + "</span>" +
+        '<div class="nz-chart-bar__bar" style="height:' + (t2 ? Math.max(2, 100 * t2 / max) : 0).toFixed(1) + '%">';
+      FR.forEach(function (r) {
+        var v = (TON.serie[r] || [])[indices[i]] || 0;
+        if (v > 0) html += '<span class="nz-chart-bar__seg" style="height:' + (100 * v / t2).toFixed(1) + "%;background:" +
+          COLORES[FRACCIONES.indexOf(etiquetaAFraccion(r))] + '"></span>';
+      });
+      html += '</div><span class="nz-chart-bar__label">' + MESES[i] + "</span></div>";
+    }
+    html += "</div>";
+    document.getElementById("serie-mensual").innerHTML = html;
+    document.getElementById("sub-serie").textContent = "Año " + anio + " · miles de toneladas por mes";
+    pintarKpiAnio(anio);
+  }
+
+  function etiquetaAFraccion(residuo) {
+    var m = { "RESTO": "Resto", "ORGANICA": "Orgánica", "ENVASES": "PMB", "PAPEL-CARTON": "Papel-Cartón", "VIDRIO": "Vidrio" };
+    return m[residuo];
+  }
+
+  function pintarDonut() {
+    var FR = ["RESTO", "ORGANICA", "ENVASES", "PAPEL-CARTON", "VIDRIO"];
+    var datos = [], total = 0;
+    FR.forEach(function (r) {
+      var v = 0;
+      TON.fechas.forEach(function (f, i) { if (f.indexOf("2026") === 0) v += (TON.serie[r] || [])[i] || 0; });
+      datos.push({ r: r, v: v, idx: FRACCIONES.indexOf(etiquetaAFraccion(r)) }); total += v;
+    });
+    var svg = document.getElementById("donut-segs"), leyenda = "", offset = 0;
+    var html = "";
+    datos.forEach(function (d) {
+      var pct = 100 * d.v / total;
+      var color = COLORES[d.idx];
+      html += '<circle class="nz-chart-donut__seg" cx="21" cy="21" r="15.9" stroke="' + color +
+        '" stroke-dasharray="' + pct.toFixed(2) + " " + (100 - pct).toFixed(2) +
+        '" stroke-dashoffset="' + (-offset).toFixed(2) + '"></circle>';
+      offset += pct;
+      leyenda += '<span class="nz-legend__item"><i class="nz-legend__swatch" data-rol="frac-' + d.idx + '"></i>' +
+        TON.etiquetas[d.r] + " · " + nf(d.v / 1000, 1) + " mil t · " + nf(pct, 1) + " %</span>";
+    });
+    svg.innerHTML = html;
+    var cont = document.getElementById("donut-leyenda");
+    cont.innerHTML = leyenda;
+    pintarSwatches(cont);
+    document.getElementById("donut-total").textContent = nf(total / 1000, 0) + " mil";
+    document.getElementById("sub-donut").textContent = "Primer semestre de 2026 · " + nf(total, 0) + " toneladas";
+  }
+
+  function pintarDistritos(anio) {
+    var datos = [];
+    Object.keys(TON.por_distrito).forEach(function (d) {
+      if (d === "Sin distrito") return;
+      var anual = TON.por_distrito[d].anual || {}, t = 0;
+      ["RESTO", "ORGANICA", "ENVASES", "PAPEL-CARTON", "VIDRIO"].forEach(function (r) {
+        t += (anual[r] || {})[anio] || 0;
+      });
+      datos.push({ d: d, t: t });
+    });
+    datos.sort(function (a, b) { return b.t - a.t; });
+    var max = datos.length ? datos[0].t : 1, html = "";
+    datos.forEach(function (x) {
+      html += '<div class="nz-chart-tablebar__row"><span class="nz-chart-tablebar__name">' + x.d + "</span>" +
+        '<span class="nz-chart-tablebar__track"><span class="nz-chart-tablebar__bar" style="width:' +
+        (100 * x.t / max).toFixed(1) + '%"></span></span><span class="nz-chart-tablebar__num">' +
+        nf(x.t / 1000, 1) + "</span></div>";
+    });
+    document.getElementById("tabla-distritos").innerHTML = html;
+    document.getElementById("sub-distritos").textContent = "Año " + anio + " · miles de toneladas";
+  }
+
+  function pintarHeatmap(anio) {
+    var FR = ["RESTO", "ORGANICA", "ENVASES", "PAPEL-CARTON", "VIDRIO"];
+    var MESES = ["E", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
+    var indices = seriePorAnio(anio), html = '<div class="nz-heatmap">';
+    html += '<div class="nz-heatmap__row"><span class="nz-heatmap__row-label"></span>';
+    MESES.forEach(function (m) { html += '<span class="nz-heatmap__col-label">' + m + "</span>"; });
+    html += "</div>";
+    FR.forEach(function (r) {
+      var vals = [];
+      for (var i = 0; i < 12; i++) {
+        var v = (indices[i] !== null) ? ((TON.serie[r] || [])[indices[i]] || 0) : null;
+        vals.push(v);
+      }
+      var conDatos = vals.filter(function (v) { return v !== null; }).sort(function (a, b) { return a - b; });
+      var q = function (p) { return conDatos.length ? conDatos[Math.min(conDatos.length - 1, Math.floor(p * conDatos.length))] : 0; };
+      var cortes = [q(0.2), q(0.4), q(0.6), q(0.8)];
+      html += '<div class="nz-heatmap__row"><span class="nz-heatmap__row-label">' + TON.etiquetas[r] + "</span>";
+      vals.forEach(function (v) {
+        var nivel = 0;
+        if (v !== null) { nivel = 1; for (var c = 0; c < 4; c++) if (v >= cortes[c]) nivel = c + 2; }
+        if (v === null) nivel = 0;
+        html += '<span class="nz-heatmap__cell ' + CLASES_CELDA[nivel] + '" title="' +
+          (v === null ? "sin datos" : nf(v, 0) + " t") + '"></span>';
+      });
+      html += "</div>";
+    });
+    html += '</div><div class="nz-heatmap__scale"><span>menos</span>' +
+      '<i class="nz-heatmap__scale-step nz-heatmap__cell--1"></i><i class="nz-heatmap__scale-step nz-heatmap__cell--2"></i>' +
+      '<i class="nz-heatmap__scale-step nz-heatmap__cell--3"></i><i class="nz-heatmap__scale-step nz-heatmap__cell--4"></i>' +
+      "<span>más</span></div>";
+    document.getElementById("heatmap").innerHTML = html;
+    document.getElementById("sub-heat").textContent = "Año " + anio + " · toneladas por fracción y mes";
+  }
+
+  function pintarAnual() {
+    var anios = [];
+    for (var a = 2017; a <= 2026; a++) anios.push(a);
+    var totales = [], select = [];
+    anios.forEach(function (a) {
+      var t = 0, s = 0;
+      Object.keys(TON.anual).forEach(function (r) {
+        var v = TON.anual[r][a] || 0; t += v;
+        if (["ORGANICA", "ENVASES", "PAPEL-CARTON", "VIDRIO"].indexOf(r) >= 0) s += v;
+      });
+      totales.push(t); select.push(s);
+    });
+    var max = Math.max.apply(null, totales) || 1;
+    var px = function (i) { return (i / (anios.length - 1)) * 300; };
+    var py = function (v) { return 100 - (v / max) * 92; };
+    var dt = "", ds = "", da = "";
+    totales.forEach(function (v, i) {
+      dt += (i ? " L" : "M") + px(i).toFixed(1) + "," + py(v).toFixed(1);
+      ds += (i ? " L" : "M") + px(i).toFixed(1) + "," + py(select[i]).toFixed(1);
+    });
+    da = dt + " L300,100 L0,100 Z";
+    document.getElementById("linea-total").setAttribute("d", dt);
+    document.getElementById("linea-selectiva").setAttribute("d", ds);
+    document.getElementById("linea-area").setAttribute("d", da);
+  }
+
+  function pintarTablas() {
+    var html = "", totCubos = 0, kgDia = 0;
+    FRACCIONES.forEach(function (f) {
+      var cubos = RED.resumen.por_fraccion[f] || 0;
+      var litros = 0, m;
+      for (m = 0; m < PUNTOS.length; m++) if (FRACCIONES[PUNTOS[m][1]] === f) litros += LITROS[PUNTOS[m][3]] || 0;
+      var kg = TON.modelo.kg_dia_ciudad[f] || 0;
+      var porCubo = cubos ? kg / cubos : 0;
+      var capKg = (litros / (cubos || 1)) * TON.modelo.densidades_kg_l[f];
+      var nec = capKg > 0 && porCubo > 0 ? 7 * porCubo / capKg : 0;
+      var serv = TON.modelo.vaciados_semana_servicio[f] || 0;
+      totCubos += cubos; kgDia += kg;
+      html += "<tr><th scope=\"row\">" + f + "</th>" +
+        '<td data-etiqueta="Contenedores" class="nz-table__num">' + nf(cubos) + "</td>" +
+        '<td data-etiqueta="Litros" class="nz-table__num">' + nf(litros / 1e6, 2) + " M</td>" +
+        '<td data-etiqueta="kg/día por cubo" class="nz-table__num">' + nf(porCubo, 1) + "</td>" +
+        '<td data-etiqueta="Vaciados/sem necesarios" class="nz-table__num">' + nf(nec, 2) + "</td>" +
+        '<td data-etiqueta="Servicio actual" class="nz-table__num">' + nf(serv, 2) +
+        '<span class="nz-badge nz-badge--sm ' + BADGE_PROCEDENCIA[TON.modelo.procedencia_servicio[f]] + '">' +
+        TON.modelo.procedencia_servicio[f] + "</span></td>" +
+        '<td data-etiqueta="Holgura" class="nz-table__num">' + (nec > 0 ? nf(serv / nec, 1) + "×" : "—") + "</td></tr>";
+    });
+    document.getElementById("cuerpo-fracciones").innerHTML = html;
+    document.getElementById("badge-fracciones").textContent = nf(totCubos) + " cubos · " + nf(kgDia / 1000, 0) + " t/día";
+
+    /* lotes */
+    var contLote = {}, t2025 = {}, i;
+    LOTES.forEach(function (l) { contLote[l] = 0; t2025[l] = 0; });
+    PUNTOS.forEach(function (p) { contLote[LOTES[p[2]]] = (contLote[LOTES[p[2]]] || 0) + 1; });
+    Object.keys(TON.por_lote).forEach(function (l) {
+      if (l === "") return;
+      var t = 0;
+      Object.keys(TON.por_lote[l]).forEach(function (r) { t += (TON.por_lote[l][r] || {})["2025"] || 0; });
+      t2025[l] = t;
+    });
+    var hl = "";
+    LOTES.forEach(function (l) {
+      var c = contLote[l] || 0, t = t2025[l] || 0;
+      hl += "<tr><th scope=\"row\">Lote " + l + "</th>" +
+        '<td data-etiqueta="Contenedores" class="nz-table__num">' + nf(c) + "</td>" +
+        '<td data-etiqueta="t en 2025" class="nz-table__num">' + nf(t / 1000, 1) + " mil</td>" +
+        '<td data-etiqueta="kg por cubo y año" class="nz-table__num">' + (c ? nf(t * 1000 / c, 0) : "—") + "</td></tr>";
+    });
+    document.getElementById("cuerpo-lotes").innerHTML = hl;
+    document.getElementById("badge-lotes").textContent = LOTES.length + " lotes";
+
+    /* otros flujos */
+    var otros = Object.keys(TON.anual).filter(function (r) {
+      return ["RESTO", "ORGANICA", "ENVASES", "PAPEL-CARTON", "VIDRIO"].indexOf(r) < 0;
+    }).sort(function (a, b) { return (TON.anual[b]["2025"] || 0) - (TON.anual[a]["2025"] || 0); });
+    var ho = "";
+    otros.forEach(function (r) {
+      if (!(TON.anual[r]["2025"] || TON.anual[r]["2026"])) return;
+      ho += "<tr><th scope=\"row\">" + TON.etiquetas[r] + "</th>" +
+        '<td data-etiqueta="2025 (t)" class="nz-table__num">' + nf(TON.anual[r]["2025"] || 0) + "</td>" +
+        '<td data-etiqueta="1S-2026 (t)" class="nz-table__num">' + nf(TON.anual[r]["2026"] || 0) + "</td></tr>";
+    });
+    document.getElementById("cuerpo-otros").innerHTML = ho;
+  }
+
+  /* ─────────── gancho de verificación ───────────
+     Permite medir la app desde un arnés headless (fuentes/04-verificar-navegador.py)
+     sin simular clics a ciegas sobre el lienzo. No pinta nada. */
+  window.MC_DEBUG = {
+    listo: function () { return listo; },
+    info: function () {
+      return {
+        capas: mapa ? mapa.getStyle().layers.length : 0,
+        puntos: PUNTOS.length, islas: ISLAS.length, fracciones: FRACCIONES.length,
+        fuenteIslas: ISLAS.length, tasaMedia: RATE.length ? Array.prototype.reduce.call(RATE, function (a, b) { return a + b; }, 0) / RATE.length : 0
+      };
+    },
+    colorPunto: function (k) { return COLORES[PUNTOS[k][1]]; },
+    contar: contar,
+    filtrar: function (distrito, idxFrac) {
+      EST.distrito = distrito || "";
+      EST.frac = (idxFrac === null || idxFrac === undefined) ? null : idxFrac;
+      var sd = document.getElementById("sel-distrito"); if (sd) sd.value = EST.distrito;
+      aplicar();
+      var c = contar();
+      return { visibles: c.puntos, islas: c.islas, litros: c.litros };
+    },
+    llenado: function (h, demanda) {
+      EST.h = h; EST.demanda = !!demanda;
+      var r = document.getElementById("rango-horas"); if (r) r.value = h;
+      pintarColorLlenado(); pintarPanelLlenado();
+      var e = estadisticaLlenado();
+      return { visibles: e.visibles, llenos: e.llenos, medio: Math.round(e.medio * 10) / 10 };
+    },
+    planificar: function (frac, distrito, camiones, capacidad) {
+      document.getElementById("sel-frac-turno").value = frac;
+      document.getElementById("sel-dist-turno").value = distrito;
+      document.getElementById("sel-camiones").value = String(camiones);
+      document.getElementById("inp-capacidad").value = String(capacidad);
+      planificar();
+      var kg = 0, km = 0, par = 0;
+      EST.rutas.forEach(function (r) { kg += r.kg; km += r.km; par += r.paradas.length; });
+      return { rutas: EST.rutas.length, paradas: par, km: Math.round(km * 10) / 10, kg: Math.round(kg) };
+    },
+    geometriaRutas: function () {
+      var src = mapa.getSource("rutas"), f = (src && src._data && src._data.features) || [];
+      var lin = 0, pun = 0;
+      f.forEach(function (x) { if (x.geometry.type === "LineString") lin++; else pun++; });
+      return { lineas: lin, paradas: pun };
+    },
+    verIsla: verIsla
+  };
+})();
+</script>
+</body>
+</html>
