@@ -19,6 +19,12 @@ Hecho con ❤️ por David Antizar
 | **App de gestión** | Rutas planificadas, asignadas, en curso y cerradas, con partes y kilos reales. Con usuarios y roles. | `api/` + `panel/` (misma API, mismo origen) |
 | **Sala de control** | El día entero de un vistazo: rutas sobre el mapa, avance, kilos por fracción, tendencia y carga media. | dentro de `panel/` |
 
+**La demo está publicada y se puede ver sin instalar nada:**
+**https://ntizar.github.io/madrid-circula/demo/** — es el mismo panel, con una captura real de
+la API y sin backend detrás. Se navega entero (sala, rutas, detalle, gráficos, mapa con
+cartografía del IGN) pero **no escribe**: planificar, asignar o cerrar se rechaza explicando
+por qué. Para ver la gestión de verdad hay que levantar la API (abajo).
+
 ### Web pública
 
 | Cara | Qué enseña |
@@ -91,6 +97,12 @@ panel/index.html           el panel: acceso, rutas, detalle, kilos, administraci
 panel/app.js               el panel, DOM a pelo (sin librerías de interfaz)
 panel/panel.css            solo pegamento de maquetación: el resto es Aurora
 panel/pruebas/verificar-panel.py   recorre el ciclo completo en navegador real (31 comprobaciones)
+
+demo/index.html            la demo publicada: generada desde panel/index.html, no se toca a mano
+demo/shim.js               el sustituto de fetch: sirve la captura y rechaza las escrituras
+demo/api/datos.json        la captura de la API (instantánea de un día de trabajo)
+demo/pruebas/verificar-demo.py     la demo se comprueba sola en navegador real (16 comprobaciones)
+api/capturar-demo.js      genera la captura y la demo a partir del panel de verdad
 ```
 
 ## Reproducir el dato
@@ -133,6 +145,13 @@ MC_SESION_HORAS=12                  # duración de la sesión
 python3 fuentes/04-verificar-navegador.py   # la web pública, en Chromium headless
 node --test api/pruebas/api.test.js         # la API: 27 pruebas con peticiones reales
 python3 panel/pruebas/verificar-panel.py    # el panel: recorre el ciclo completo como una persona
+python3 demo/pruebas/verificar-demo.py      # la demo publicada: que lea sí y que escribir no
+```
+
+Para rehacer la instantánea publicada (con otra fecha, o cuando cambie el panel):
+
+```bash
+node api/capturar-demo.js    # monta un día de trabajo real y regenera demo/
 ```
 
 El arnés del panel entra, planifica, asigna, entra como conductor, inicia, marca una parada,
