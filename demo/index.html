@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="es" data-nz-theme="light" data-nz-marca="esmeralda">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f4f6f8'/%3E%3Ccircle cx='11' cy='16' r='4.5' fill='%232f9e44'/%3E%3Ccircle cx='21' cy='16' r='4.5' fill='%23f2c200'/%3E%3C/svg%3E">
+<title>Madrid Circula · gestión de rutas</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/tokens.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/marcas/esmeralda.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p1-layout.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p3-typography.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p4-actions.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p5-forms.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p6-feedback.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p7-overlays.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p8-data.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p9-media.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p13-charts.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p17-patrones.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="../panel/panel.css">
+  <meta name="robots" content="noindex">
+  <!-- Generado por api/capturar-demo.js desde panel/index.html: no editar a mano. -->
+</head>
+<body class="nz">
+
+<!-- ─────────────────────── acceso ─────────────────────── -->
+<section class="mc-acceso" id="acceso">
+  <form class="nz-panel mc-acceso__caja" id="form-acceso" novalidate>
+    <div>
+      <h1 class="nz-h2">Madrid Circula</h1>
+      <p class="nz-text--muted">Gestión de rutas de recogida de residuos del Ayuntamiento de Madrid.</p>
+    </div>
+    <div class="nz-field">
+      <label class="nz-label" for="inp-email">Email</label>
+      <input class="nz-input" type="email" id="inp-email" name="email" autocomplete="username" required>
+    </div>
+    <div class="nz-field">
+      <label class="nz-label" for="inp-clave">Contraseña</label>
+      <input class="nz-input" type="password" id="inp-clave" name="clave" autocomplete="current-password" required>
+    </div>
+    <p class="nz-error" id="acceso-error" role="alert" hidden></p>
+    <button class="nz-btn" type="submit" id="btn-entrar">Entrar</button>
+    <p class="nz-text--small nz-text--muted mc-acceso__pie">
+      Datos: Ayuntamiento de Madrid (CC-BY 4.0) · Cartografía: IGN (CC BY 4.0)<br>
+      Hecho con ❤️ por David Antizar
+    </p>
+  </form>
+</section>
+
+<!-- ─────────────────────── aplicación ─────────────────────── -->
+<div class="nz-appshell" id="app" hidden>
+  <header class="nz-header mc-cabecera">
+    <strong class="nz-logomark">Madrid Circula</strong>
+    <nav class="mc-nav" id="nav" aria-label="Secciones">
+      <button class="nz-btn nz-btn--ghost nz-btn--sm" data-vista="sala" data-minimo="invitado">Sala de control</button>
+      <button class="nz-btn nz-btn--ghost nz-btn--sm" data-vista="hoy" data-minimo="invitado">Rutas</button>
+      <button class="nz-btn nz-btn--ghost nz-btn--sm" data-vista="nueva" data-minimo="planificador">Planificar</button>
+      <button class="nz-btn nz-btn--ghost nz-btn--sm" data-vista="kilos" data-minimo="invitado">Kilos</button>
+      <button class="nz-btn nz-btn--ghost nz-btn--sm" data-vista="admin" data-minimo="admin">Administración</button>
+    </nav>
+    <span class="nz-toolbar__spacer"></span>
+    <span class="nz-chip" id="chip-usuario">—</span>
+    <button class="nz-btn nz-btn--ghost nz-btn--sm" id="btn-salir">Salir</button>
+  </header>
+
+  <main class="nz-main nz-container mc-cuerpo">
+
+    <!-- ··· vista: sala de control (el dashboard del día) ··· -->
+    <section id="v-sala" hidden>
+      <div class="nz-cluster nz-cluster--between mc-cab-sala">
+        <div class="nz-stack nz-stack--2xs">
+          <p class="nz-eyebrow">Sala de control</p>
+          <h2 class="nz-h2">El día, de un vistazo</h2>
+          <p class="nz-lead" id="sala-lead">Cargando el día…</p>
+        </div>
+        <div class="nz-cluster nz-cluster--compact">
+          <div class="nz-field">
+            <label class="nz-label" for="sala-fecha">Día</label>
+            <input class="nz-input" type="date" id="sala-fecha">
+          </div>
+          <button class="nz-btn nz-btn--sm" id="sala-refrescar" type="button">Actualizar</button>
+          <button class="nz-btn nz-btn--outline nz-btn--sm" id="sala-directo" type="button" aria-pressed="false">Directo</button>
+        </div>
+      </div>
+
+      <section class="nz-section" aria-label="Cifras del día">
+        <div class="nz-dash-grid nz-dash-grid--4" id="sala-kpis"></div>
+      </section>
+
+      <section class="nz-section" aria-label="Rutas del día sobre el mapa">
+        <div class="mc-sala-rejilla">
+          <figure class="nz-chart">
+            <div class="nz-chart__head">
+              <div>
+                <span class="nz-chart__title">Todas las rutas del día</span>
+                <span class="nz-chart__sub" id="sala-mapa-sub">—</span>
+              </div>
+              <div class="nz-chart__actions"><span class="nz-legend" id="sala-mapa-leyenda"></span></div>
+            </div>
+            <div class="nz-chart__body">
+              <div class="mc-mapa mc-mapa--sala" id="sala-mapa"></div>
+            </div>
+            <figcaption class="nz-chart__foot">
+              <span class="nz-chart__source">© IGN — Instituto Geográfico Nacional (CC BY 4.0) · Datos: Ayuntamiento de Madrid (CC-BY 4.0)</span>
+            </figcaption>
+          </figure>
+
+          <div class="nz-panel">
+            <div class="nz-table__toolbar">
+              <span class="nz-table__strong">Rutas del día</span>
+              <span class="nz-badge nz-badge--neutral" id="sala-n-rutas">—</span>
+            </div>
+            <div class="mc-sala-lista" id="sala-rutas"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="nz-section" aria-label="Reparto de kilos">
+        <div class="nz-dash-grid nz-dash-grid--2">
+          <figure class="nz-chart">
+            <div class="nz-chart__head">
+              <div>
+                <span class="nz-chart__title">Kilos por fracción</span>
+                <span class="nz-chart__sub">Previsto del día; el real entra cuando el conductor cierra el parte</span>
+              </div>
+            </div>
+            <div class="nz-chart__body"><div class="nz-chart-bar" id="sala-barras"></div></div>
+            <figcaption class="nz-chart__foot">
+              <span class="nz-legend" id="sala-barras-leyenda"></span>
+              <span class="nz-chart__source">Previsto = toneladas reales del distrito repartidas entre sus contenedores.</span>
+            </figcaption>
+          </figure>
+
+          <figure class="nz-chart">
+            <div class="nz-chart__head">
+              <div>
+                <span class="nz-chart__title">Reparto del día</span>
+                <span class="nz-chart__sub">Cuota de cada fracción sobre el total previsto</span>
+              </div>
+            </div>
+            <div class="nz-chart__body">
+              <div class="nz-chart-donut" id="sala-donut"></div>
+            </div>
+            <figcaption class="nz-chart__foot">
+              <span class="nz-chart__source">Pasa el ratón por un tramo para ver su cuota y sus kilos.</span>
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="nz-section" aria-label="Evolución y carga">
+        <div class="nz-dash-grid nz-dash-grid--2">
+          <figure class="nz-chart">
+            <div class="nz-chart__head">
+              <div>
+                <span class="nz-chart__title">Kilos por día</span>
+                <span class="nz-chart__sub">Los últimos 14 días con rutas</span>
+              </div>
+            </div>
+            <div class="nz-chart__body">
+              <div class="nz-chart-line nz-chart-line--lg" id="sala-linea"></div>
+            </div>
+            <figcaption class="nz-chart__foot" id="sala-linea-pie"></figcaption>
+          </figure>
+
+          <figure class="nz-chart">
+            <div class="nz-chart__head">
+              <div>
+                <span class="nz-chart__title">Carga media por fracción</span>
+                <span class="nz-chart__sub">Modelo declarado, no sensor de llenado</span>
+              </div>
+            </div>
+            <div class="nz-chart__body"><div class="nz-chart-bar" id="sala-carga"></div></div>
+            <figcaption class="nz-chart__foot" id="sala-carga-pie"></figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <div class="nz-alert nz-alert--info" role="note">
+        <span class="nz-alert__icon" aria-hidden="true">
+          <svg class="nz-icon nz-icon--sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+        </span>
+        <div class="nz-alert__body">
+          <p class="nz-alert__title">Qué es real y qué es modelado</p>
+          <div id="sala-honestidad"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ··· vista: rutas del día ··· -->
+    <section id="v-hoy" hidden>
+      <div class="mc-rejilla-kpi" id="kpis-hoy"></div>
+
+      <div class="nz-panel">
+        <div class="nz-toolbar">
+          <div class="nz-toolbar__group">
+            <div class="nz-field">
+              <label class="nz-label" for="f-desde">Desde</label>
+              <input class="nz-input" type="date" id="f-desde">
+            </div>
+            <div class="nz-field">
+              <label class="nz-label" for="f-hasta">Hasta</label>
+              <input class="nz-input" type="date" id="f-hasta">
+            </div>
+            <div class="nz-field">
+              <label class="nz-label" for="f-estado">Estado</label>
+              <select class="nz-select" id="f-estado">
+                <option value="">Todos</option>
+                <option value="borrador">Borrador</option>
+                <option value="asignada">Asignada</option>
+                <option value="en_curso">En curso</option>
+                <option value="cerrada">Cerrada</option>
+              </select>
+            </div>
+          </div>
+          <span class="nz-toolbar__spacer"></span>
+          <div class="nz-toolbar__group">
+            <span class="nz-badge nz-badge--neutral" id="contador-rutas">—</span>
+            <button class="nz-btn nz-btn--sm" id="btn-refrescar">Actualizar</button>
+          </div>
+        </div>
+        <div class="nz-table-wrap nz-table-wrap--apilable">
+          <table class="nz-table nz-table--apilable nz-table--striped nz-table--sm" id="tabla-rutas">
+            <thead>
+              <tr>
+                <th>Fecha</th><th>Turno</th><th>Distrito</th><th>Fracción</th>
+                <th class="nz-table__num">Islas</th>
+                <th class="nz-table__num">Previsto</th>
+                <th class="nz-table__num">Real</th>
+                <th>Conductor</th><th>Estado</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="cuerpo-rutas"></tbody>
+          </table>
+        </div>
+        <p class="mc-vacio" id="rutas-vacio" hidden>No hay rutas con esos filtros.</p>
+      </div>
+    </section>
+
+    <!-- ··· vista: detalle de una ruta ··· -->
+    <section id="v-ruta" hidden>
+      <div class="nz-panel">
+        <div class="mc-cab-ruta">
+          <button class="nz-btn nz-btn--ghost nz-btn--sm" id="btn-volver">← Volver</button>
+          <h2 class="nz-h3" id="ruta-titulo">Ruta</h2>
+          <span class="nz-badge" id="ruta-estado">—</span>
+          <span class="nz-toolbar__spacer"></span>
+          <div class="mc-acciones" id="ruta-acciones"></div>
+        </div>
+        <div class="mc-rejilla-kpi" id="kpis-ruta"></div>
+        <p class="nz-text--small nz-text--muted" id="ruta-notas"></p>
+      </div>
+
+      <div class="mc-ruta">
+        <div class="nz-panel">
+          <div class="nz-table__toolbar"><span class="nz-table__strong">Recorrido</span></div>
+          <div class="mc-mapa" id="mapa"></div>
+          <p class="nz-text--small nz-text--muted">© IGN — Instituto Geográfico Nacional (CC BY 4.0) · Datos: Ayuntamiento de Madrid (CC-BY 4.0)</p>
+        </div>
+        <div class="nz-panel">
+          <div class="nz-table__toolbar">
+            <span class="nz-table__strong">Paradas</span>
+            <span class="nz-badge nz-badge--neutral" id="contador-paradas">—</span>
+          </div>
+          <div class="mc-paradas" id="lista-paradas"></div>
+        </div>
+      </div>
+
+      <div class="nz-panel" id="ruta-incidencias-panel" hidden>
+        <div class="nz-table__toolbar"><span class="nz-table__strong">Incidencias</span></div>
+        <div id="lista-incidencias"></div>
+      </div>
+    </section>
+
+    <!-- ··· vista: planificar ··· -->
+    <section id="v-nueva" hidden>
+      <div class="nz-panel">
+        <h2 class="nz-h3">Planificar una ruta</h2>
+        <p class="nz-text--muted">
+          La ruta se arma con <strong>islas reales</strong> del distrito que tienen contenedores de esa
+          fracción, ordenadas por cercanía (vecino más cercano + 2-opt). Los kilos salen de las
+          toneladas reales del Ayuntamiento repartidas entre los contenedores; el recorrido corta al
+          llegar a la capacidad del camión.
+        </p>
+        <form id="form-ruta" class="nz-formgrid" novalidate>
+          <div class="nz-field">
+            <label class="nz-label" for="n-fecha">Fecha</label>
+            <input class="nz-input" type="date" id="n-fecha" required>
+          </div>
+          <div class="nz-field">
+            <label class="nz-label" for="n-turno">Turno</label>
+            <select class="nz-select" id="n-turno">
+              <option>mañana</option><option>tarde</option><option>noche</option>
+            </select>
+          </div>
+          <div class="nz-field">
+            <label class="nz-label" for="n-fraccion">Fracción</label>
+            <select class="nz-select" id="n-fraccion"></select>
+          </div>
+          <div class="nz-field">
+            <label class="nz-label" for="n-distrito">Distrito</label>
+            <select class="nz-select" id="n-distrito"></select>
+          </div>
+          <div class="nz-field">
+            <label class="nz-label" for="n-camion">Camión</label>
+            <input class="nz-input" type="text" id="n-camion" placeholder="MAD-0000">
+          </div>
+          <div class="nz-field">
+            <label class="nz-label" for="n-islas">Tope de islas (opcional)</label>
+            <input class="nz-input" type="number" id="n-islas" min="1" max="400" placeholder="las que quepan">
+          </div>
+          <div class="nz-field">
+            <label class="nz-label" for="n-conductor">Asignar a</label>
+            <select class="nz-select" id="n-conductor"><option value="">Sin asignar</option></select>
+          </div>
+          <div class="nz-field">
+            <span class="nz-label">Salida</span>
+            <button class="nz-btn" type="submit" id="btn-planificar">Planificar y guardar</button>
+          </div>
+        </form>
+        <p class="nz-error" id="nueva-error" role="alert" hidden></p>
+      </div>
+    </section>
+
+    <!-- ··· vista: kilos ··· -->
+    <section id="v-kilos" hidden>
+      <div class="nz-panel">
+        <div class="nz-toolbar">
+          <div class="nz-toolbar__group">
+            <div class="nz-field">
+              <label class="nz-label" for="k-desde">Desde</label>
+              <input class="nz-input" type="date" id="k-desde">
+            </div>
+            <div class="nz-field">
+              <label class="nz-label" for="k-hasta">Hasta</label>
+              <input class="nz-input" type="date" id="k-hasta">
+            </div>
+          </div>
+          <span class="nz-toolbar__spacer"></span>
+          <button class="nz-btn nz-btn--sm" id="btn-kilos">Ver</button>
+        </div>
+        <div class="mc-rejilla-kpi" id="kpis-kilos"></div>
+      </div>
+      <div class="nz-panel">
+        <div class="nz-table__toolbar"><span class="nz-table__strong">Por fracción</span></div>
+        <div class="nz-table-wrap nz-table-wrap--apilable">
+          <table class="nz-table nz-table--apilable nz-table--striped nz-table--sm">
+            <thead><tr><th>Fracción</th><th class="nz-table__num">Rutas</th><th class="nz-table__num">Kilos</th><th class="nz-table__num">Km</th></tr></thead>
+            <tbody id="cuerpo-kilos-fraccion"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="nz-panel">
+        <div class="nz-table__toolbar"><span class="nz-table__strong">Por distrito</span></div>
+        <div class="nz-table-wrap nz-table-wrap--apilable">
+          <table class="nz-table nz-table--apilable nz-table--striped nz-table--sm">
+            <thead><tr><th>Distrito</th><th class="nz-table__num">Rutas</th><th class="nz-table__num">Kilos</th></tr></thead>
+            <tbody id="cuerpo-kilos-distrito"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="nz-panel">
+        <div class="nz-table__toolbar"><span class="nz-table__strong">Por conductor</span></div>
+        <div class="nz-table-wrap nz-table-wrap--apilable">
+          <table class="nz-table nz-table--apilable nz-table--striped nz-table--sm">
+            <thead><tr><th>Conductor</th><th class="nz-table__num">Rutas</th><th class="nz-table__num">Kilos</th></tr></thead>
+            <tbody id="cuerpo-kilos-conductor"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ··· vista: administración ··· -->
+    <section id="v-admin" hidden>
+      <div class="nz-panel">
+        <h2 class="nz-h3">Cuentas</h2>
+        <div class="nz-table-wrap nz-table-wrap--apilable">
+          <table class="nz-table nz-table--apilable nz-table--striped nz-table--sm">
+            <thead>
+              <tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Alta</th><th>Último acceso</th><th>Estado</th><th></th></tr>
+            </thead>
+            <tbody id="cuerpo-usuarios"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="nz-panel">
+        <h2 class="nz-h3">Nueva cuenta</h2>
+        <form id="form-usuario" class="nz-formgrid" novalidate>
+          <div class="nz-field">
+            <label class="nz-label" for="u-nombre">Nombre</label>
+            <input class="nz-input" type="text" id="u-nombre" required>
+          </div>
+          <div class="nz-field">
+            <label class="nz-label" for="u-email">Email</label>
+            <input class="nz-input" type="email" id="u-email" required>
+          </div>
+          <div class="nz-field">
+            <label class="nz-label" for="u-rol">Rol</label>
+            <select class="nz-select" id="u-rol">
+              <option value="conductor">Conductor</option>
+              <option value="planificador">Planificador</option>
+              <option value="invitado">Invitado (solo lectura)</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </div>
+          <div class="nz-field">
+            <label class="nz-label" for="u-clave">Contraseña</label>
+            <input class="nz-input" type="password" id="u-clave" minlength="8" required>
+          </div>
+          <div class="nz-field">
+            <span class="nz-label">Alta</span>
+            <button class="nz-btn" type="submit" id="btn-crear-usuario">Crear cuenta</button>
+          </div>
+        </form>
+        <p class="nz-error" id="usuario-error" role="alert" hidden></p>
+      </div>
+
+      <div class="nz-panel">
+        <div class="nz-table__toolbar"><span class="nz-table__strong">Auditoría</span></div>
+        <div class="nz-table-wrap nz-table-wrap--apilable">
+          <table class="nz-table nz-table--apilable nz-table--striped nz-table--sm">
+            <thead><tr><th>Cuándo</th><th>Quién</th><th>Acción</th><th>Entidad</th><th>Detalle</th></tr></thead>
+            <tbody id="cuerpo-auditoria"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <div class="nz-toast-stack" id="avisos" aria-live="polite"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/js/graficos.js"></script>
+<script src="shim.js"></script>
+  <script src="../panel/app.js"></script>
+</body>
+</html>

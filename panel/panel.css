@@ -4,9 +4,11 @@
 
 /* Las clases de Aurora traen su propio `display`, que pisa el atributo `hidden`
    del HTML (misma especificidad, gana el orden: este fichero va después de los packs).
-   Sin esto, la app se ve por detrás del acceso y las vistas se apilan todas. */
+   Sin esto, la app se ve por detrás del acceso y las vistas se apilan todas. Va con
+   `!important` porque las reglas de este mismo fichero (.mc-acceso, por ejemplo) también
+   pisan el atributo: `hidden` tiene que ganar siempre. */
 [hidden] {
-  display: none;
+  display: none !important;
 }
 
 .mc-acceso {
