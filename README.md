@@ -62,6 +62,8 @@ fuentes/01-descargar.py    descarga los CSV originales a crudo/
 fuentes/02-construir.py    construye datos/*.json desde crudo/
 fuentes/03-verificar.py    21 comprobaciones sobre los ficheros publicados
 fuentes/04-verificar-navegador.py  mide la web real en Chromium headless (31 comprobaciones)
+fuentes/_diagnostico.py    por qué la página no llega a estado listo (consola del navegador)
+fuentes/_desborde.py       quién desborda a 320 px, con etiqueta, clases y ancho
 VERIFICACION.md            informe de la verificación de datos
 VERIFICACION-NAVEGADOR.md  informe de la verificación en navegador
 ```
