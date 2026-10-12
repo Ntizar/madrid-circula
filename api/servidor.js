@@ -320,6 +320,16 @@ export function crearServidor(opciones = {}) {
     };
   });
 
+  add("GET", /^\/api\/conductores$/, (req) => {
+    exigir(req, "planificador");
+    return {
+      conductores: db.prepare(
+        `SELECT id, nombre, rol FROM usuarios
+         WHERE activo = 1 AND rol IN ('conductor', 'planificador', 'admin') ORDER BY nombre`
+      ).all()
+    };
+  });
+
   add("POST", /^\/api\/usuarios$/, (req, _p, _url, cuerpo, res) => {
     const quien = exigir(req, "admin");
     const email = String(cuerpo.email || "").trim();

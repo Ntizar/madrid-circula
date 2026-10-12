@@ -1,0 +1,151 @@
+/* Madrid Circula · panel de gestión.
+   Solo pegamento de maquetación: el color, los componentes y el espaciado son de Aurora.
+   Nada de colores a mano: si aquí hay un color, es un token. */
+
+/* Las clases de Aurora traen su propio `display`, que pisa el atributo `hidden`
+   del HTML (misma especificidad, gana el orden: este fichero va después de los packs).
+   Sin esto, la app se ve por detrás del acceso y las vistas se apilan todas. */
+[hidden] {
+  display: none;
+}
+
+.mc-acceso {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--nz-space-6, 1.5rem);
+  background: var(--nz-bg-inset, #eef1f4);
+}
+
+.mc-acceso__caja {
+  width: min(27rem, 100%);
+  display: grid;
+  gap: var(--nz-space-4, 1rem);
+}
+
+.mc-acceso__pie {
+  text-align: center;
+}
+
+.mc-cabecera {
+  display: flex;
+  align-items: center;
+  gap: var(--nz-space-4, 1rem);
+  flex-wrap: wrap;
+}
+
+.mc-nav {
+  display: flex;
+  gap: var(--nz-space-1, 0.25rem);
+  flex-wrap: wrap;
+}
+
+.mc-cuerpo {
+  padding-block: var(--nz-space-5, 1.25rem);
+}
+
+.mc-rejilla-kpi {
+  display: grid;
+  gap: var(--nz-space-4, 1rem);
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+}
+
+.mc-filtros {
+  display: flex;
+  gap: var(--nz-space-3, 0.75rem);
+  flex-wrap: wrap;
+  align-items: end;
+}
+
+.mc-filtros .nz-field {
+  min-width: 9rem;
+}
+
+/* detalle de ruta: mapa y lista, uno al lado del otro en pantalla grande */
+.mc-ruta {
+  display: grid;
+  gap: var(--nz-space-5, 1.25rem);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 60rem) {
+  .mc-ruta {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.mc-mapa {
+  height: 58vh;
+  min-height: 22rem;
+  border-radius: var(--nz-radius-md, 0.5rem);
+  overflow: hidden;
+}
+
+.mc-paradas {
+  max-height: 58vh;
+  overflow-y: auto;
+}
+
+.mc-parada {
+  display: flex;
+  gap: var(--nz-space-3, 0.75rem);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--nz-space-2, 0.5rem) 0;
+  border-bottom: 1px solid var(--nz-border, #d5dbe1);
+}
+
+.mc-parada--hecha {
+  opacity: 0.55;
+}
+
+.mc-parada__n {
+  font-variant-numeric: tabular-nums;
+  color: var(--nz-text-mute, #6b7280);
+  min-width: 2rem;
+}
+
+.mc-parada__dir {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.mc-cab-ruta {
+  display: flex;
+  gap: var(--nz-space-4, 1rem);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.mc-acciones {
+  display: flex;
+  gap: var(--nz-space-2, 0.5rem);
+  flex-wrap: wrap;
+}
+
+.mc-tabla-acciones {
+  display: flex;
+  gap: var(--nz-space-1, 0.25rem);
+  flex-wrap: wrap;
+}
+
+.mc-vacio {
+  color: var(--nz-text-mute, #6b7280);
+  padding: var(--nz-space-6, 1.5rem);
+  text-align: center;
+}
+
+.mc-cargando {
+  display: flex;
+  align-items: center;
+  gap: var(--nz-space-2, 0.5rem);
+  color: var(--nz-text-mute, #6b7280);
+}
+
+.mc-auditoria__detalle {
+  max-width: 22rem;
+  font-family: var(--nz-font-mono, ui-monospace, monospace);
+  font-size: var(--nz-text-xs, 0.75rem);
+  overflow-wrap: anywhere;
+}

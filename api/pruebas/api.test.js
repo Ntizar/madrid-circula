@@ -270,7 +270,17 @@ test("T23 · dos rutas del mismo turno no repiten las mismas islas", async () =>
   assert.equal(repetidas.length, 0, "la segunda ruta no pisa la primera");
 });
 
-test("T24 · datos malos se rechazan con un mensaje claro", async () => {
+test("T25 · el planificador ve la lista de conductores (y el invitado no)", async () => {
+  const r = await plan.pide("GET", "/api/conductores");
+  assert.equal(r.estado, 200);
+  const roles = r.datos.conductores.map((c) => c.rol);
+  assert.ok(roles.includes("conductor"), "aparecen los conductores");
+  assert.ok(!roles.includes("invitado"), "un invitado no conduce");
+  assert.ok(r.datos.conductores.every((c) => c.nombre && c.id));
+  assert.equal((await invitado.pide("GET", "/api/conductores")).estado, 403);
+});
+
+test("T26 · datos malos se rechazan con un mensaje claro", async () => {
   const fecha = await plan.pide("POST", "/api/rutas", { fecha: "20-10-2026", turno: "mañana", fraccion: "Resto" });
   assert.equal(fecha.estado, 400);
   assert.ok(fecha.datos.error.includes("Fecha"));
