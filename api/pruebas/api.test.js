@@ -280,6 +280,26 @@ test("T25 · el planificador ve la lista de conductores (y el invitado no)", asy
   assert.equal((await invitado.pide("GET", "/api/conductores")).estado, 403);
 });
 
+test("T27 · la ruta nunca sale sobrecargada", async () => {
+  // El tope es la capacidad del camión para esa fracción (11.000 kg en Resto).
+  // Si no cabe una isla entera, se deja fuera: antes se pasaba 15 kg de largo.
+  const r = await plan.pide("POST", "/api/rutas", {
+    fecha: "2026-11-10", turno: "mañana", fraccion: "Resto", distrito: "Carabanchel"
+  });
+  assert.equal(r.estado, 201, JSON.stringify(r.datos));
+  const tope = 11000;
+  assert.ok(r.datos.kg_previstos <= tope,
+    `se pasa del tope: ${r.datos.kg_previstos} kg sobre ${tope}`);
+  assert.ok(r.datos.paradas.length > 1, "y aun así lleva paradas de sobra");
+  const sumaParadas = r.datos.paradas.reduce((s, p) => s + p.kg_previstos, 0);
+  assert.ok(Math.abs(sumaParadas - r.datos.kg_previstos) < r.datos.paradas.length,
+    "los kilos de la ruta cuadran con la suma de sus paradas");
+  const conTope = await plan.pide("POST", "/api/rutas", {
+    fecha: "2026-11-11", turno: "tarde", fraccion: "Vidrio", distrito: "Centro", max_islas: 5
+  });
+  assert.equal(conTope.datos.paradas.length, 5, "el tope de islas se respeta (ni una más)");
+});
+
 test("T26 · datos malos se rechazan con un mensaje claro", async () => {
   const fecha = await plan.pide("POST", "/api/rutas", { fecha: "20-10-2026", turno: "mañana", fraccion: "Resto" });
   assert.equal(fecha.estado, 400);

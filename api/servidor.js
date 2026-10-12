@@ -175,13 +175,17 @@ export function crearServidor(opciones = {}) {
 
     const candidatas = [];
     let acumulado = 0;
+    const limite = maxIslas ? Number(maxIslas) : Infinity;
     for (const i of islas) {
       if (yaHechas.has(i.id)) continue;
+      if (candidatas.length >= limite) break;
       const kg = kgPorContenedor * i.contenedores;
+      // Mejor una parada menos que ir sobrecargado: si esta isla no cabe, se corta aquí.
+      // (La primera sí entra siempre, para que una ruta nunca salga vacía.)
+      if (kg > 0 && candidatas.length > 0 && acumulado + kg > tope) break;
       candidatas.push({ ...i, kg_previstos: kg });
       acumulado += kg;
       if (kg > 0 && acumulado >= tope) break;
-      if (maxIslas && candidatas.length >= maxIslas) break;
     }
     if (!candidatas.length) throw new ErrorHttp(400, "Todas las islas de ese distrito y fracción ya están en otra ruta de ese turno");
 
