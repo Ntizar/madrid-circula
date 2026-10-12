@@ -300,6 +300,55 @@ test("T27 · la ruta nunca sale sobrecargada", async () => {
   assert.equal(conTope.datos.paradas.length, 5, "el tope de islas se respeta (ni una más)");
 });
 
+test("T28 · la sala de control cuadra y respeta los permisos", async () => {
+  const FECHA = "2026-11-10";
+  // La ruta de ese día (creada en T27) se la damos a Concha para poder comprobar el filtro.
+  const lista = await plan.pide("GET", `/api/rutas?fecha=${FECHA}`);
+  assert.ok(lista.datos.rutas.length >= 1, "T27 dejó una ruta ese día");
+  const idRuta = lista.datos.rutas[0].id;
+  const asig = await plan.pide("POST", `/api/rutas/${idRuta}/asignar`, { conductor_id: IDS.cond1 });
+  assert.equal(asig.estado, 200, JSON.stringify(asig.datos));
+
+  const sala = await plan.pide("GET", `/api/sala?fecha=${FECHA}`);
+  assert.equal(sala.estado, 200);
+  const s = sala.datos;
+  assert.equal(s.fecha, FECHA);
+  assert.ok(s.kpis.rutas >= 1, "el día tiene rutas");
+  assert.equal(s.kpis.rutas, s.rutas.length, "el recuento de rutas cuadra");
+  assert.ok(s.kpis.sin_asignar <= s.kpis.rutas);
+  assert.equal(s.kpis.kg_previstos,
+    Math.round(s.rutas.reduce((t, r) => t + r.kg_previstos, 0)), "los kilos previstos son la suma de las rutas");
+  const sumaFrac = s.porFraccion.reduce((t, f) => t + f.kg_previstos, 0);
+  assert.ok(Math.abs(sumaFrac - s.kpis.kg_previstos) <= s.porFraccion.length, "el reparto por fracción cuadra con el total");
+  assert.equal(s.porTurno.reduce((t, x) => t + x.rutas, 0), s.kpis.rutas, "el reparto por turno reparte todas las rutas");
+
+  // El mapa trae la línea y las paradas de cada ruta del día.
+  assert.ok(s.mapa.rutas.length >= 1, "hay geometría para pintar");
+  const m = s.mapa.rutas[0];
+  assert.equal(m.linea.length, m.paradas.length, "un punto de línea por parada");
+  assert.ok(m.linea.length > 1, "la línea tiene recorrido");
+  assert.ok(m.linea.every(([lon, lat]) => lon < 0 && lat > 0), "la línea va en [lon, lat], como pide GeoJSON");
+  assert.ok(m.paradas.every((p) => p.lat > 40 && p.lat < 41 && p.lon > -4.6 && p.lon < -3.1), "coordenadas dentro de Madrid");
+
+  // El modelo de carga: varias fracciones, con su densidad declarada y en rango creíble.
+  const conCarga = s.red.porFraccion.filter((f) => f.carga_pct != null);
+  assert.ok(conCarga.length >= 3, "hay carga calculada para varias fracciones");
+  assert.ok(conCarga.every((f) => f.densidad > 0 && f.carga_pct > 0 && f.carga_pct < 400), "cargas creíbles y con densidad declarada");
+  assert.ok(s.modelo.meses_referencia && s.modelo.meses_referencia.length >= 1, "el modelo declara sus meses de referencia");
+  assert.ok(s.red.porDistrito.length >= 20, "la red llega a todos los distritos");
+  assert.ok(s.serie.some((d) => d.fecha === FECHA), "la serie incluye el día pedido");
+
+  // Permisos: el conductor solo ve lo suyo; el invitado ve la sala (es lectura).
+  const suya = await cond1.pide("GET", `/api/sala?fecha=${FECHA}`);
+  assert.equal(suya.estado, 200);
+  assert.equal(suya.datos.rutas.length, 1, "Concha solo ve su ruta");
+  assert.ok(suya.datos.rutas.every((r) => r.conductor_id === IDS.cond1));
+  const deOtro = await cond2.pide("GET", `/api/sala?fecha=${FECHA}`);
+  assert.equal(deOtro.datos.rutas.length, 0, "Cosme no ve la ruta de Concha");
+  assert.equal((await invitado.pide("GET", "/api/sala")).estado, 200, "el invitado puede mirar la sala");
+  assert.equal((await anon.pide("GET", "/api/sala")).estado, 401, "sin cuenta, no");
+});
+
 test("T26 · datos malos se rechazan con un mensaje claro", async () => {
   const fecha = await plan.pide("POST", "/api/rutas", { fecha: "20-10-2026", turno: "mañana", fraccion: "Resto" });
   assert.equal(fecha.estado, 400);

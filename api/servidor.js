@@ -584,6 +584,187 @@ export function crearServidor(opciones = {}) {
     };
   });
 
+  // ── sala de control ─────────────────────────────────────────────────────────
+  /**
+   * Todo lo que pinta la sala de control en UNA llamada: cifras del día, rutas con su avance,
+   * reparto por fracción/distrito/turno/estado, serie de los últimos días, la geometría para
+   * pintar todas las rutas juntas y el modelo de carga.
+   *
+   * La carga media por fracción sale de dividir los kg/día REALES del distrito entre los litros
+   * REALES del inventario y la densidad DECLARADA en el modelo. Es un modelo, no una medida
+   * del sensor de llenado (que no es público): la suposición declarada es que la recogida del
+   * día vacía el contenedor. El panel lo cuenta tal cual; aquí solo se calcula.
+   */
+  add("GET", /^\/api\/sala$/, (req, _p, url) => {
+    const u = exigir(req, "invitado");
+    const q = url.searchParams;
+    const fecha = /^\d{4}-\d{2}-\d{2}$/.test(q.get("fecha") || "") ? q.get("fecha") : new Date().toISOString().slice(0, 10);
+    const dias = Math.min(Math.max(Number(q.get("dias") || 14), 1), 60);
+    const soloMio = u.rol === "conductor" ? " AND r.conductor_id = ?" : "";
+    const argsMio = u.rol === "conductor" ? [u.id] : [];
+
+    const leerMeta = (c) => {
+      const f = db.prepare("SELECT valor FROM meta WHERE clave = ?").get(c);
+      return f ? JSON.parse(f.valor) : null;
+    };
+    const fracciones = leerMeta("fracciones") || [];
+    const colores = leerMeta("colores") || [];
+    const colorDe = (f) => (Array.isArray(colores) ? colores[fracciones.indexOf(f)] : (colores || {})[f]) || null;
+
+    const delDia = db.prepare(
+      `SELECT r.id, r.fecha, r.turno, r.fraccion, r.distrito, r.camion, r.estado, r.notas, r.conductor_id,
+              r.islas_planificadas islas, r.contenedores, r.litros, r.kg_previstos, r.km_planificados km,
+              r.horas_previstas horas, u.nombre conductor,
+              (SELECT COUNT(*) FROM paradas WHERE ruta_id = r.id) paradas,
+              (SELECT COUNT(*) FROM paradas WHERE ruta_id = r.id AND hecha = 1) hechas,
+              (SELECT COUNT(*) FROM incidencias WHERE ruta_id = r.id) incidencias,
+              p.kg_total kg_real, p.desvio_pct
+       FROM rutas r
+       LEFT JOIN usuarios u ON u.id = r.conductor_id
+       LEFT JOIN partes p ON p.ruta_id = r.id
+       WHERE r.fecha = ?${soloMio}
+       ORDER BY CASE r.turno WHEN 'mañana' THEN 1 WHEN 'tarde' THEN 2 ELSE 3 END, r.fraccion, r.id`
+    ).all(fecha, ...argsMio).map((r) => ({
+      ...r,
+      color: colorDe(r.fraccion),
+      progreso_pct: r.paradas ? Math.round((r.hechas / r.paradas) * 100) : 0
+    }));
+
+    const suma = (lista, campo) => lista.reduce((s, x) => s + (Number(x[campo]) || 0), 0);
+    const redondea = (n, d = 0) => Number(n.toFixed(d));
+    const cerradas = delDia.filter((r) => r.estado === "cerrada");
+    const paradas = suma(delDia, "paradas");
+    const hechas = suma(delDia, "hechas");
+    const conParte = cerradas.filter((r) => r.desvio_pct != null);
+    const kpis = {
+      rutas: delDia.length,
+      porEstado: ["borrador", "asignada", "en_curso", "cerrada", "anulada"]
+        .reduce((o, e) => Object.assign(o, { [e]: delDia.filter((r) => r.estado === e).length }), {}),
+      islas: suma(delDia, "islas"),
+      contenedores: suma(delDia, "contenedores"),
+      litros: suma(delDia, "litros"),
+      km: redondea(suma(delDia, "km"), 1),
+      horas: redondea(suma(delDia, "horas"), 1),
+      kg_previstos: Math.round(suma(delDia, "kg_previstos")),
+      kg_reales: Math.round(suma(cerradas, "kg_real")),
+      paradas,
+      paradas_hechas: hechas,
+      progreso_pct: paradas ? Math.round((hechas / paradas) * 100) : 0,
+      camiones_en_curso: delDia.filter((r) => r.estado === "en_curso").length,
+      sin_asignar: delDia.filter((r) => !r.conductor && r.estado !== "anulada").length,
+      incidencias: suma(delDia, "incidencias"),
+      desvio_pct: conParte.length ? redondea(suma(conParte, "desvio_pct") / conParte.length, 1) : null
+    };
+
+    const agrupa = (clave) => {
+      const mapa = new Map();
+      for (const r of delDia) {
+        const k = r[clave] ?? "—";
+        const a = mapa.get(k) || { [clave]: k, rutas: 0, kg_previstos: 0, kg_reales: 0, km: 0, islas: 0, contenedores: 0 };
+        a.rutas += 1;
+        a.kg_previstos += r.kg_previstos || 0;
+        a.kg_reales += r.kg_real || 0;
+        a.km += r.km || 0;
+        a.islas += r.islas || 0;
+        a.contenedores += r.contenedores || 0;
+        mapa.set(k, a);
+      }
+      return [...mapa.values()].map((a) => Object.assign(a, {
+        kg_previstos: Math.round(a.kg_previstos),
+        kg_reales: Math.round(a.kg_reales),
+        km: redondea(a.km, 1),
+        ...(clave === "fraccion" ? { color: colorDe(a.fraccion) } : {})
+      }));
+    };
+    const porFraccion = agrupa("fraccion").sort((a, b) => b.kg_previstos - a.kg_previstos);
+    const porDistrito = agrupa("distrito").sort((a, b) => b.kg_previstos - a.kg_previstos);
+    const porTurno = agrupa("turno");
+    const porEstado = agrupa("estado");
+
+    const serie = db.prepare(
+      `SELECT r.fecha, COUNT(*) rutas, SUM(r.kg_previstos) kg_previstos,
+              SUM(COALESCE(p.kg_total, 0)) kg_reales, SUM(r.km_planificados) km
+       FROM rutas r LEFT JOIN partes p ON p.ruta_id = r.id
+       WHERE r.fecha <= ? AND r.fecha >= date(?, '-' || ? || ' days')${soloMio}
+       GROUP BY r.fecha ORDER BY r.fecha`
+    ).all(fecha, fecha, dias, ...argsMio).map((f) => ({
+      ...f, kg_previstos: Math.round(f.kg_previstos), kg_reales: Math.round(f.kg_reales), km: redondea(f.km || 0, 1)
+    }));
+
+    // Modelo de carga por fracción (kg/día reales ÷ litros reales ÷ densidad declarada)
+    const densidades = params.densidades_kg_l || {};
+    const kgDiaFrac = db.prepare("SELECT fraccion, SUM(kg_dia) kg_dia FROM kg_dia GROUP BY fraccion").all();
+    const redPorFraccion = db.prepare(
+      "SELECT fraccion, COUNT(*) contenedores, SUM(litros) litros, COUNT(DISTINCT isla_id) islas FROM contenedores GROUP BY fraccion"
+    ).all().map((c) => {
+      const kg = (kgDiaFrac.find((k) => k.fraccion === c.fraccion) || {}).kg_dia || 0;
+      const densidad = densidades[c.fraccion] || null;
+      const kg_litro = c.litros ? kg / c.litros : 0;
+      return {
+        fraccion: c.fraccion, color: colorDe(c.fraccion), contenedores: c.contenedores, islas: c.islas,
+        litros: c.litros, kg_dia: Math.round(kg), kg_litro: redondea(kg_litro, 4), densidad,
+        carga_pct: densidad ? redondea((kg_litro / densidad) * 100, 1) : null
+      };
+    }).sort((a, b) => b.contenedores - a.contenedores);
+
+    // Carga por distrito: se pondera por número de contenedores, que es lo que hay de verdad.
+    const instalado = db.prepare(
+      "SELECT distrito, fraccion, COUNT(*) contenedores, SUM(litros) litros FROM contenedores GROUP BY distrito, fraccion"
+    ).all();
+    const kgDiaDist = db.prepare("SELECT distrito, fraccion, kg_dia FROM kg_dia").all();
+    const acumula = new Map();
+    for (const c of instalado) {
+      const kg = (kgDiaDist.find((k) => k.distrito === c.distrito && k.fraccion === c.fraccion) || {}).kg_dia || 0;
+      const densidad = densidades[c.fraccion] || null;
+      const carga = densidad && c.litros ? ((kg / c.litros) / densidad) * 100 : null;
+      const a = acumula.get(c.distrito) || { distrito: c.distrito, contenedores: 0, litros: 0, kg_dia: 0, suma: 0, n: 0 };
+      a.contenedores += c.contenedores;
+      a.litros += c.litros;
+      a.kg_dia += kg;
+      if (carga != null) { a.suma += carga * c.contenedores; a.n += c.contenedores; }
+      acumula.set(c.distrito, a);
+    }
+    const cargaPorDistrito = [...acumula.values()].map((a) => ({
+      distrito: a.distrito, contenedores: a.contenedores, litros: a.litros, kg_dia: Math.round(a.kg_dia),
+      carga_pct: a.n ? redondea(a.suma / a.n, 1) : null
+    })).sort((a, b) => b.contenedores - a.contenedores);
+
+    // Geometría: todas las rutas del día juntas, para verlas de un vistazo en el mapa.
+    const TOPE_MAPA = 12;
+    const paraMapa = delDia.filter((r) => r.estado !== "anulada").slice(0, TOPE_MAPA);
+    let mapa = [];
+    if (paraMapa.length) {
+      const ids = paraMapa.map((r) => r.id);
+      const puntos = db.prepare(
+        `SELECT ruta_id, orden, lat, lon, hecha FROM paradas
+         WHERE ruta_id IN (${ids.map(() => "?").join(",")}) ORDER BY ruta_id, orden`
+      ).all(...ids);
+      mapa = paraMapa.map((r) => {
+        const suyos = puntos.filter((p) => p.ruta_id === r.id);
+        return {
+          id: r.id, fraccion: r.fraccion, color: r.color, estado: r.estado, conductor: r.conductor,
+          km: r.km, progreso_pct: r.progreso_pct,
+          linea: suyos.map((p) => [p.lon, p.lat]),
+          paradas: suyos.map((p) => ({ lon: p.lon, lat: p.lat, hecha: p.hecha, orden: p.orden }))
+        };
+      });
+    }
+
+    return {
+      fecha, dias, generado: ahora(),
+      kpis, rutas: delDia, porFraccion, porDistrito, porTurno, porEstado, serie,
+      red: { porFraccion: redPorFraccion, porDistrito: cargaPorDistrito },
+      mapa: { rutas: mapa, total_rutas: delDia.length, mostradas: mapa.length },
+      modelo: {
+        densidades_kg_l: densidades,
+        meses_referencia: params.meses_referencia || null,
+        capacidad_camion_kg: capacidades,
+        velocidad_media_kmh: velocidad,
+        segundos_por_parada: segPorParada
+      }
+    };
+  });
+
   // ── estáticos del panel (mismo origen en producción: sin líos de cookies) ────
   const TIPOS = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json" };
   function estatico(req, res, url) {

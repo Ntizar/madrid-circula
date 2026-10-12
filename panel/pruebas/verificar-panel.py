@@ -151,6 +151,44 @@ try:
             else:
                 fallo(f"la ruta salió vacía: {ruta}")
 
+            # 3b · más rutas: otra fracción y otro distrito el mismo día, y una en otro día.
+            # Así la sala de control se ve con varias fracciones y con serie de más de un día,
+            # que es como se va a usar de verdad.
+            extras = [
+                ("2026-10-25", "tarde", "Vidrio", "Centro"),
+                ("2026-10-25", "noche", "Orgánica", "Latina"),
+                ("2026-10-20", "mañana", "PMB", "Tetuán"),
+            ]
+            creadas = 0
+            for fecha_x, turno_x, fraccion_x, distrito_x in extras:
+                try:
+                    pag.click('[data-vista="nueva"]')
+                    pag.fill("#n-fecha", fecha_x)
+                    pag.select_option("#n-turno", turno_x)
+                    pag.select_option("#n-fraccion", fraccion_x)
+                    pag.select_option("#n-distrito", distrito_x)
+                    pag.fill("#n-camion", "MAD-0002")
+                    pag.click("#btn-planificar")
+                    pag.wait_for_function(
+                        "f => window.MC_PANEL.ruta && window.MC_PANEL.ruta.fraccion === f",
+                        arg=fraccion_x, timeout=30000)
+                    creadas += 1
+                except Exception as e:
+                    aviso(f"no pude planificar {fraccion_x} en {distrito_x}: {type(e).__name__}")
+            ok(f"rutas del día para la sala: {creadas + 1} (fracciones y días distintos)")
+
+            # volver a la ruta de Carabanchel para seguir con la asignación
+            pag.click('[data-vista="hoy"]')
+            pag.fill("#f-desde", "2026-10-25")
+            pag.fill("#f-hasta", "2026-10-25")
+            pag.click("#btn-refrescar")
+            pag.wait_for_selector("#cuerpo-rutas tr", timeout=15000)
+            pag.click('#cuerpo-rutas tr:has-text("Carabanchel") button')
+            pag.wait_for_function(
+                "() => window.MC_PANEL.vista === 'ruta' && window.MC_PANEL.ruta.distrito === 'Carabanchel'",
+                timeout=15000)
+            ruta = pag.evaluate("() => window.MC_PANEL.ruta")
+
             # 4 · el mapa: lienzo pintado, IGN pedido de verdad y paradas dibujadas
             pag.wait_for_selector("#mapa canvas", timeout=20000)
             time.sleep(3)
@@ -245,7 +283,101 @@ try:
             hechas = pag.evaluate("() => window.MC_PANEL.ruta.paradas.filter(p => p.hecha).length")
             ok(f"parada marcada como hecha ({hechas} de {len(ruta['paradas'])})")
 
-            # 9 · en móvil no se desborda
+            # 9 · la sala de control: el dashboard del día, con datos de verdad.
+            # Se mira como admin (que es como se usa): el conductor solo vería su ruta, y
+            # eso ya está comprobado en las pruebas de la API (T28).
+            fecha_ruta = pag.evaluate("() => window.MC_PANEL.ruta.fecha")
+            pag.click("#btn-salir")
+            entrar_como(*ADMIN)
+            pag.wait_for_selector('[data-vista="sala"]', timeout=15000)
+            pag.click('[data-vista="sala"]')
+            pag.wait_for_selector("#v-sala", state="visible", timeout=8000)
+            pag.fill("#sala-fecha", fecha_ruta)
+            pag.click("#sala-refrescar")
+            pag.wait_for_function(
+                "() => window.MC_PANEL.vista === 'sala' && window.MC_PANEL.sala && window.MC_PANEL.sala.kpis.rutas >= 1",
+                timeout=25000)
+            sala = pag.evaluate("() => window.MC_PANEL.sala")
+            k = sala["kpis"]
+
+            if k["rutas"] == len(sala["rutas"]) and k["rutas"] >= 1:
+                ok(f"sala: {k['rutas']} rutas · {k['paradas']} paradas · {k['kg_previstos']} kg previstos · "
+                   f"{k['progreso_pct']} % de avance")
+            else:
+                fallo(f"la sala no cuadra: {k['rutas']} en el KPI y {len(sala['rutas'])} rutas")
+
+            suma = sum(r["kg_previstos"] for r in sala["rutas"])
+            if round(suma) == k["kg_previstos"]:
+                ok("sala: los kilos del indicador son la suma de las rutas")
+            else:
+                fallo(f"sala: el indicador dice {k['kg_previstos']} kg y las rutas suman {round(suma)}")
+
+            nk = pag.eval_on_selector_all("#sala-kpis .nz-kpi", "els => els.length")
+            ok(f"sala: {nk} indicadores pintados") if nk == 8 else fallo(f"sala: {nk} indicadores (esperaba 8)")
+
+            teselas = pag.evaluate("() => window.MC_PANEL.salaMapa.getStyle().sources.base.tiles[0]")
+            capas = pag.evaluate("() => window.MC_PANEL.salaMapa.getStyle().layers.map(l => l.id)")
+            propias = [c for c in capas if str(c).startswith("sala-")]
+            if "ign.es" in teselas and len(propias) >= 3:
+                ok(f"sala: mapa con {len(propias)} capas propias sobre teselas del IGN")
+            else:
+                fallo(f"sala: capas {capas} · teselas {teselas[:60]}")
+
+            barras = pag.eval_on_selector_all("#sala-barras .nz-chart-bar__col", "e => e.length")
+            sectores = pag.eval_on_selector_all("#sala-donut .nz-chart-donut__seg", "e => e.length")
+            lineas = pag.eval_on_selector_all("#sala-linea .nz-chart-line__path", "e => e.length")
+            carga = pag.eval_on_selector_all("#sala-carga .nz-chart-bar__col", "e => e.length")
+            fracciones_dia = len(sala["porFraccion"])
+            dias = len(sala["serie"])
+            # Los gráficos tienen que cuadrar con los datos, no solo existir: una barra y un
+            # sector por fracción del día, y la línea solo si hay más de un día.
+            if barras == fracciones_dia and sectores == fracciones_dia and carga >= 3 and (lineas > 0 or dias < 2):
+                ok(f"sala: gráficos cuadran (barras {barras} = sectores {sectores} = {fracciones_dia} fracciones · "
+                   f"carga {carga} · línea {'sí' if lineas else 'no'} con {dias} día(s))")
+            else:
+                fallo(f"sala: gráficos descuadrados (barras {barras}, sectores {sectores}, de {fracciones_dia} fracciones · "
+                      f"carga {carga} · línea {lineas} con {dias} días)")
+
+            carga_txt = ", ".join(
+                f"{f['fraccion']} {f['carga_pct']} % (densidad {f['densidad']})"
+                for f in sala["red"]["porFraccion"] if f["carga_pct"] is not None)
+            ok(f"sala: modelo de carga calculado -> {carga_txt}")
+
+            honesta = pag.inner_text("#sala-honestidad")
+            if "REAL" in honesta and "MODELADO" in honesta and "densidad declarada" in honesta:
+                ok("sala: el cartel de qué es real y qué es modelado está puesto")
+            else:
+                fallo(f"sala: el cartel de honestidad no dice lo que debe: {honesta[:120]}")
+
+            camiones = pag.evaluate("() => Object.keys(window.MC_PANEL.camiones || {}).length")
+            if camiones >= 1:
+                ok(f"sala: {camiones} camión(es) en curso sobre el mapa")
+            else:
+                fallo("sala: no hay ningún camión en curso pintado")
+
+            # el modo directo mueve los camiones por su recorrido
+            antes = pag.evaluate(
+                "() => { const c = window.MC_PANEL.camiones; const id = Object.keys(c)[0];"
+                " const p = c[id].getLngLat(); return [p.lng, p.lat]; }")
+            pag.click("#sala-directo")
+            pag.wait_for_timeout(1800)
+            despues = pag.evaluate(
+                "() => { const c = window.MC_PANEL.camiones; const id = Object.keys(c)[0];"
+                " const p = c[id].getLngLat(); return [p.lng, p.lat]; }")
+            pag.click("#sala-directo")
+            if antes != despues:
+                ok("sala: el modo directo mueve el camión por su recorrido")
+            else:
+                fallo("sala: el camión no se movió en modo directo")
+
+            # desde la sala se abre el detalle de una ruta y se vuelve
+            pag.click("#sala-rutas button[data-ruta]")
+            pag.wait_for_function("() => window.MC_PANEL.vista === 'ruta'", timeout=15000)
+            ok("sala: desde la lista se abre el detalle de la ruta")
+            pag.click('[data-vista="sala"]')
+            pag.wait_for_timeout(1500)
+
+            # 10 · en móvil no se desborda
             pag.set_viewport_size({"width": 360, "height": 780})
             time.sleep(0.6)
             ancho = pag.evaluate("() => document.documentElement.scrollWidth")

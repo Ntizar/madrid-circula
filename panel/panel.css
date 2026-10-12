@@ -149,3 +149,116 @@
   font-size: var(--nz-text-xs, 0.75rem);
   overflow-wrap: anywhere;
 }
+
+/* ── sala de control (el dashboard del día) ─────────────────────────────────── */
+.mc-cab-sala {
+  gap: var(--nz-space-4, 1rem);
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+/* mapa grande a la izquierda, rutas del día a la derecha */
+.mc-sala-rejilla {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--nz-space-5, 1.25rem);
+}
+
+@media (min-width: 960px) {
+  .mc-sala-rejilla {
+    grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.mc-mapa--sala {
+  height: 58vh;
+  min-height: 20rem;
+}
+
+.mc-sala-lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nz-space-2, 0.5rem);
+  max-height: 58vh;
+  overflow-y: auto;
+}
+
+.mc-sala-ruta {
+  display: flex;
+  gap: var(--nz-space-2, 0.5rem);
+  align-items: flex-start;
+  padding-block: var(--nz-space-2, 0.5rem);
+  border-bottom: 1px solid var(--nz-bg-inset, #e9edf1);
+}
+
+.mc-sala-ruta__centro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nz-space-1, 0.3rem);
+  flex: 1;
+  min-width: 0;
+}
+
+.mc-sala-ruta__titulo { font-weight: 600; }
+
+.mc-sala-ruta__dcha {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--nz-space-1, 0.25rem);
+  text-align: right;
+}
+
+/* barra de avance de una ruta: el ancho es el dato, el color es la fracción */
+.mc-barra {
+  height: 6px;
+  background: var(--nz-bg-inset, #e9edf1);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.mc-barra__relleno {
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+/* punto de color de una fracción (los colores de contenedor son dato oficial) */
+.mc-punto {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: var(--nz-space-1, 6px);
+  flex: 0 0 auto;
+}
+
+/* El camión del modo directo. Se mueve, pero su posición es RECONSTRUIDA: no hay GPS. */
+.mc-camion {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--nz-bg, #ffffff);
+  border: 2px solid var(--nz-brand, #0f7a4a);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.25);
+}
+
+.mc-camion svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: var(--nz-text, #111827);
+  stroke-width: 1.6;
+}
+
+.mc-camion::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 2px solid var(--nz-brand, #0f7a4a);
+  opacity: 0.3;
+}
