@@ -87,10 +87,18 @@ try:
         ok("atribución exacta en el pie") if datos["footer"] == "Hecho con ❤️ por David Antizar" else fallo(f"pie: {datos['footer']!r}")
         ok(f"{datos['enlacesAurora']} hojas de Aurora por CDN pineado")
 
+        # 1b · tema claro de verdad y cartografía IGN (no basta con que las clases estén en el DOM)
+        t = pag.evaluate("""() => {
+            const m = (getComputedStyle(document.body).backgroundColor.match(/\\d+/g) || [0, 0, 0]).map(Number);
+            return { tema: document.documentElement.getAttribute('data-nz-theme'), luz: Math.round((m[0] + m[1] + m[2]) / 3) };
+        }""")
+        ok(f"tema {t['tema']} · fondo con luminancia {t['luz']} (claro)") if t["tema"] == "light" and t["luz"] > 200 else fallo(f"tema o fondo: {t}")
+
         # 2 · mapa: capas y datos reales
         m = pag.evaluate("""() => window.MC_DEBUG.info()""")
         ok(f"mapa con {m['capas']} capas y fuente de {m['puntos']} recipientes") if m["capas"] >= 5 and m["puntos"] > 40000 else fallo(f"mapa flojo: {m}")
         ok(f"islas: {m['islas']} · fracciones: {m['fracciones']}") if m["islas"] > 14000 else fallo("pocas islas en la fuente")
+        ok(f"cartografía base: {m['base'][:60]}") if "ign.es" in (m["base"] or "") else fallo(f"la base no es del IGN: {m['base']}")
 
         # 3 · KPIs con dato
         kpis = pag.evaluate("""() => ({

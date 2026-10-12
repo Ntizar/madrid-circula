@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es" data-nz-theme="dark" data-nz-marca="esmeralda">
+<html lang="es" data-nz-theme="light" data-nz-marca="esmeralda">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23111827'/%3E%3Ccircle cx='11' cy='16' r='4.5' fill='%232f9e44'/%3E%3Ccircle cx='21' cy='16' r='4.5' fill='%23f2c200'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f4f6f8'/%3E%3Ccircle cx='11' cy='16' r='4.5' fill='%232f9e44'/%3E%3Ccircle cx='21' cy='16' r='4.5' fill='%23f2c200'/%3E%3C/svg%3E">
 <title>Madrid Circula — gemelo digital de la recogida de residuos</title>
 <meta name="description" content="Gemelo digital de la recogida de residuos de Madrid: 44 069 contenedores reales del inventario municipal, 114 meses de tonelaje real y un modelo de llenado calibrado con esos datos.">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/tokens.css">
@@ -119,6 +119,14 @@
               <button class="nz-btn nz-btn--sm is-active" data-vista="red">Fracción</button>
               <button class="nz-btn nz-btn--sm" data-vista="llenado">Llenado</button>
               <button class="nz-btn nz-btn--sm" data-vista="turnos">Turnos</button>
+            </span>
+          </div>
+          <span class="nz-toolbar__spacer"></span>
+          <div class="nz-toolbar__group">
+            <span class="nz-segmented" id="seg-base" role="group" aria-label="Cartografía base">
+              <button class="nz-btn nz-btn--sm is-active" data-base="gris">IGN gris</button>
+              <button class="nz-btn nz-btn--sm" data-base="topo">Topográfico</button>
+              <button class="nz-btn nz-btn--sm" data-base="orto">Ortofoto</button>
             </span>
           </div>
           <span class="nz-toolbar__spacer"></span>
@@ -536,6 +544,28 @@
   var ROL = {};   /* color resuelto en tiempo de ejecución desde los datos */
   var CLASES_CELDA = ["nz-heatmap__cell--0", "nz-heatmap__cell--1", "nz-heatmap__cell--2", "nz-heatmap__cell--3", "nz-heatmap__cell--4"];
   var BADGE_PROCEDENCIA = { publicado: "nz-badge--success", declarado: "nz-badge--neutral" };
+  /* paleta del mapa vacía al principio: se rellena leyendo los tokens del design system */
+  var COL = {};
+
+  /* Lee un token del design system. Si mañana cambia la marca o el tema, el mapa cambia con él. */
+  function tono(nombre, porDefecto) {
+    var v = (getComputedStyle(document.documentElement).getPropertyValue(nombre) || "").trim();
+    return v || porDefecto;
+  }
+
+  /* ── cartografía base: IGN (Instituto Geográfico Nacional), CC BY 4.0 ──
+     La capa gris es la recomendada para poner datos encima; topográfica y ortofoto
+     son para mirar el territorio. FORMAT=image/jpeg es obligatorio en este servicio. */
+  var BASES = {
+    gris: { capa: "IGNBase-gris", nombre: "IGN gris" },
+    topo: { capa: "IGNBaseTodo", nombre: "IGN topográfico" },
+    orto: { capa: "IGNBaseOrto", nombre: "IGN ortofoto" }
+  };
+
+  function urlIGN(capa) {
+    return "https://www.ign.es/wmts/ign-base?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=" + capa +
+      "&STYLE=default&TILEMATRIXSET=GoogleMapsCompatible&TILEMATRIX={z}&TILECOL={x}&TILEROW={y}&FORMAT=image/jpeg";
+  }
 
   /* los colores de fracción salen del inventario; los de la escala de llenado, del propio modelo */
   function pintarSwatches(raiz) {
@@ -570,7 +600,21 @@
     var dens = TON.modelo.densidades_kg_l, capMedia = TON.modelo.capacidad_media_litros;
     FRACCIONES.forEach(function (f, i) { CAP_FRACCION[f] = 0; });
     FRACCIONES.forEach(function (f, i) { ROL["frac-" + i] = COLORES[i]; });
-    ROL["escala-bajo"] = "#1f3a52"; ROL["escala-media"] = "#7fb069"; ROL["escala-alto"] = "#d64545";
+    /* paleta del mapa leída del design system: tema y marca mandan, no yo */
+    COL = {
+      marca: tono("--nz-brand", "#0f7a4a"),
+      marcaSuave: tono("--nz-brand-soft", "#d9f2e5"),
+      marcaFuerte: tono("--nz-brand-strong", "#0b5c38"),
+      exito: tono("--nz-success", "#1f7a3d"),
+      aviso: tono("--nz-accent", "#b26a00"),
+      peligro: tono("--nz-danger", "#b3261e"),
+      info: tono("--nz-info", "#1d6fa5"),
+      fondo: tono("--nz-bg", "#ffffff"),
+      hundido: tono("--nz-bg-inset", "#eef1f4"),
+      texto: tono("--nz-text", "#111827"),
+      tenue: tono("--nz-text-mute", "#6b7280")
+    };
+    ROL["escala-bajo"] = COL.hundido; ROL["escala-media"] = COL.exito; ROL["escala-alto"] = COL.peligro;
 
     /* tasa de llenado por contenedor (% por hora) = kg/hora ÷ capacidad del cubo */
     RATE = new Float32Array(PUNTOS.length);
@@ -697,6 +741,17 @@
     });
     document.getElementById("btn-planificar").addEventListener("click", planificar);
     document.getElementById("btn-animar").addEventListener("click", animar);
+
+    /* selector de cartografía: IGN gris / topográfico / ortofoto */
+    var segBase = document.getElementById("seg-base");
+    segBase.addEventListener("click", function (e) {
+      var b = e.target.closest ? e.target.closest("button[data-base]") : null;
+      if (!b) return;
+      Array.prototype.forEach.call(segBase.querySelectorAll("button"), function (x) { x.classList.remove("is-active"); });
+      b.classList.add("is-active");
+      var fuente = mapa.getSource("base"), clave = b.getAttribute("data-base");
+      if (fuente && BASES[clave]) fuente.setTiles([urlIGN(BASES[clave].capa)]);
+    });
   }
 
   /* ─────────── mapa ─────────── */
@@ -724,14 +779,14 @@
         version: 8,
         sources: {
           base: {
-            type: "raster", tileSize: 256, maxzoom: 16,
-            tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"],
-            attribution: "© Esri, Maxar, Earthstar Geographics · Datos: Ayuntamiento de Madrid (CC-BY 4.0)"
+            type: "raster", tileSize: 256, maxzoom: 19,
+            tiles: [urlIGN(BASES.gris.capa)],
+            attribution: "© IGN — Instituto Geográfico Nacional (CC BY 4.0) · Datos: Ayuntamiento de Madrid (CC-BY 4.0)"
           }
         },
         layers: [{ id: "base", type: "raster", source: "base" }]
       },
-      center: [-3.7038, 40.4168], zoom: 11.4, maxZoom: 18, minZoom: 9,
+      center: [-3.7038, 40.4168], zoom: 11.4, maxZoom: 19, minZoom: 9,
       dragRotate: false, attributionControl: true
     });
     mapa.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
@@ -744,8 +799,8 @@
         id: "c-luva", type: "circle", source: "contenedores",
         filter: ["has", "point_count"],
         paint: {
-          "circle-color": ["step", ["get", "point_count"], "#4b5563", 25, "#5b6b7c", 100, "#7d8b9c", 400, "#a5b3c2"],
-          "circle-opacity": 0.85, "circle-stroke-width": 1, "circle-stroke-color": "#0b0f14",
+          "circle-color": ["step", ["get", "point_count"], COL.hundido, 25, COL.marcaSuave, 100, COL.marca, 400, COL.marcaFuerte],
+          "circle-opacity": 0.9, "circle-stroke-width": 1, "circle-stroke-color": COL.fondo,
           "circle-radius": ["step", ["get", "point_count"], 12, 25, 16, 100, 21, 400, 27]
         }
       });
@@ -761,17 +816,17 @@
       mapa.addLayer({
         id: "rutas-linea", type: "line", source: "rutas",
         layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#34d399", "line-width": ["interpolate", ["linear"], ["zoom"], 10, 2, 15, 5], "line-opacity": 0.9 }
+        paint: { "line-color": COL.info, "line-width": ["interpolate", ["linear"], ["zoom"], 10, 2, 15, 5], "line-opacity": 0.9 }
       });
       mapa.addLayer({
         id: "rutas-parada", type: "circle", source: "rutas",
         filter: ["==", ["geometry-type"], "Point"],
-        paint: { "circle-color": "#0b0f14", "circle-radius": 2.6, "circle-stroke-width": 1.4, "circle-stroke-color": "#34d399" }
+        paint: { "circle-color": COL.fondo, "circle-radius": 2.6, "circle-stroke-width": 1.4, "circle-stroke-color": COL.info }
       });
       mapa.addLayer({
         id: "foco", type: "circle", source: "contenedores",
         filter: ["==", ["get", "i"], -1],
-        paint: { "circle-color": "#ffffff", "circle-radius": 9, "circle-opacity": 0.25 }
+        paint: { "circle-color": COL.marca, "circle-radius": 9, "circle-opacity": 0.3 }
       });
 
       mapa.on("click", "puntos", function (e) {
@@ -797,7 +852,7 @@
   function pinturaColorFraccion() {
     var expr = ["match", ["get", "f"]];
     FRACCIONES.forEach(function (f, i) { expr.push(i, COLORES[i]); });
-    expr.push("#888888");
+    expr.push(COL.tenue);
     return expr;
   }
 
@@ -805,7 +860,7 @@
     var h = EST.demanda ? EST.h : (EST.h % 24 === 0 && EST.h > 0 ? 24 : EST.h);
     /* la variable get r = %/hora · h → % llenado */
     return ["interpolate", ["linear"], ["min", 100, ["*", ["get", "r"], h]],
-      0, "#1f3a52", 25, "#2f6f8f", 50, "#7fb069", 70, "#e0b64a", 85, "#e07a3f", 100, "#d64545"];
+      0, COL.hundido, 35, COL.exito, 65, COL.aviso, 100, COL.peligro];
   }
 
   function indicesFiltro() {
@@ -1399,9 +1454,12 @@
   window.MC_DEBUG = {
     listo: function () { return listo; },
     info: function () {
+      var st = mapa ? mapa.getStyle() : { sources: {}, layers: [] };
       return {
-        capas: mapa ? mapa.getStyle().layers.length : 0,
+        capas: mapa ? st.layers.length : 0,
         puntos: PUNTOS.length, islas: ISLAS.length, fracciones: FRACCIONES.length,
+        base: (st.sources && st.sources.base && st.sources.base.tiles) ? st.sources.base.tiles[0] : "",
+        tema: document.documentElement.getAttribute("data-nz-theme"),
         fuenteIslas: ISLAS.length, tasaMedia: RATE.length ? Array.prototype.reduce.call(RATE, function (a, b) { return a + b; }, 0) / RATE.length : 0
       };
     },
