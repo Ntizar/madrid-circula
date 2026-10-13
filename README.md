@@ -161,7 +161,7 @@ a 360 px.
 
 ## Diseño
 
-Interfaz con **Aurora v8.3.0** (pineada por CDN, nunca `@master`) y su **tema claro**, siguiendo
+Interfaz con **Aurora v8.4.1** (pineada por CDN, nunca `@master`) y su **tema claro**, siguiendo
 la receta canónica de dashboard. Mapa con **MapLibre GL JS** y cartografía base del **IGN**
 (Instituto Geográfico Nacional, CC BY 4.0), con selector de gris, topográfico y ortofoto.
 Ningún color a mano en la interfaz: todo sale de tokens, y los colores de los contenedores son

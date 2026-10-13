@@ -6,17 +6,17 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f4f6f8'/%3E%3Ccircle cx='11' cy='16' r='4.5' fill='%232f9e44'/%3E%3Ccircle cx='21' cy='16' r='4.5' fill='%23f2c200'/%3E%3C/svg%3E">
 <title>Madrid Circula — gemelo digital de la recogida de residuos</title>
 <meta name="description" content="Gemelo digital de la recogida de residuos de Madrid: 44 069 contenedores reales del inventario municipal, 114 meses de tonelaje real y un modelo de llenado calibrado con esos datos.">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/tokens.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/marcas/esmeralda.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p1-layout.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p2-navigation.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p3-typography.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p4-actions.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p5-forms.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p6-feedback.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p8-data.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p12-system.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.3.0/packs/p13-charts.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.4.1/tokens.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.4.1/marcas/esmeralda.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.4.1/packs/p1-layout.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.4.1/packs/p2-navigation.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.4.1/packs/p3-typography.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.4.1/packs/p4-actions.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.4.1/packs/p5-forms.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.4.1/packs/p6-feedback.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.4.1/packs/p8-data.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.4.1/packs/p12-system.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Ntizar/Aurora@v8.4.1/packs/p13-charts.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <style>
   /* Solo geometría y el marcador del camión (el color lo pone el JS desde los datos). */
@@ -80,9 +80,9 @@
         <span class="nz-kpi__value" id="k-islas">—</span>
         <span class="nz-kpi__delta nz-kpi__delta--flat" id="k-ratio">—</span>
       </div>
-      <div class="nz-kpi">
+      <div class="nz-kpi nz-kpi--accent">
         <span class="nz-kpi__label">Toneladas recogidas en 2025</span>
-        <span class="nz-kpi__value nz-kpi__value--brand" id="k-t2025">—</span>
+        <span class="nz-kpi__value" id="k-t2025">—</span>
         <span class="nz-kpi__delta nz-kpi__delta--flat" id="k-t2026">—</span>
       </div>
       <div class="nz-kpi">
@@ -132,7 +132,7 @@
           </div>
           <span class="nz-toolbar__spacer"></span>
           <div class="nz-toolbar__group">
-            <span class="nz-badge nz-badge--brand" id="badge-visibles">—</span>
+            <span class="nz-badge nz-badge--neutral" id="badge-visibles">—</span>
             <button class="nz-btn nz-btn--ghost nz-btn--sm" id="btn-centrar">Centrar en Madrid</button>
           </div>
         </div>
@@ -273,7 +273,7 @@
         <div class="nz-empty__body">
           <span class="nz-empty__title">Todavía no hay ningún turno</span>
           <span class="nz-empty__body">Ve al panel de <strong>Turnos</strong> del mapa, elige fracción y distrito, y pulsa «Planificar turno».</span>
-          <span class="nz-empty__action"><a class="nz-btn nz-btn--soft nz-btn--sm" href="#red">Ir al planificador</a></span>
+          <span class="nz-empty__action"><a class="nz-btn nz-btn--accent nz-btn--sm" href="#red">Ir al planificador</a></span>
         </div>
       </div>
     </div>
@@ -403,7 +403,7 @@
       <div class="nz-table-wrap nz-table-wrap--apilable">
         <div class="nz-table__toolbar">
           <span class="nz-table__strong">Las 5 fracciones de contenedor</span>
-          <span class="nz-badge nz-badge--brand" id="badge-fracciones">—</span>
+          <span class="nz-badge nz-badge--neutral" id="badge-fracciones">—</span>
         </div>
         <table class="nz-table nz-table--apilable nz-table--striped">
           <thead>
@@ -508,7 +508,7 @@
           <li><a href="https://datos.madrid.es/dataset/300143-0-recogida-residuos">Recogida de residuos</a> <span class="nz-nota">dataset 300143</span></li>
           <li><a href="https://presupuestosabiertos.madrid.es/es/programas/16210/gestion-ambiental-urbana">Indicadores de gestión ambiental urbana</a> <span class="nz-nota">presupuestosabiertos.madrid.es</span></li>
           <li>Fracciones y colores de los recipientes: Ordenanza 12/2022 de Limpieza de los Espacios Públicos y Gestión de Residuos.</li>
-          <li>Cartografía base: Esri Dark Gray Canvas. Interfaz: Aurora v8.3.0. Motor de mapa: MapLibre GL JS.</li>
+          <li>Cartografía base: Esri Dark Gray Canvas. Interfaz: Aurora v8.4.1. Motor de mapa: MapLibre GL JS.</li>
         </ul>
       </div>
       <div class="nz-article nz-article--bordered">
@@ -1011,7 +1011,7 @@
     });
     var html = '<div class="nz-stack nz-stack--sm">' +
       '<div class="nz-cluster nz-cluster--between"><span class="nz-table__strong">' + isla[0] + "</span>" +
-      '<span class="nz-badge nz-badge--brand">' + dist + "</span></div>" +
+      '<span class="nz-badge nz-badge--neutral">' + dist + "</span></div>" +
       '<span class="nz-nota">' + RED.direcciones[isla[4]] + " · " + isla[1].toFixed(5) + ", " + isla[2].toFixed(5) + "</span>" +
       '<div class="nz-table-wrap nz-table-wrap--apilable"><table class="nz-table nz-table--apilable nz-table--striped nz-table--sm">' +
       '<thead><tr><th>Fracción</th><th>Modelo</th><th class="nz-table__num">Litros</th>' +
@@ -1149,7 +1149,7 @@
     document.getElementById("detalle-turnos").innerHTML =
       '<div class="nz-table-wrap nz-table-wrap--apilable"><div class="nz-table__toolbar">' +
       '<span class="nz-table__strong">Recorrido a recorrido</span>' +
-      '<span class="nz-badge nz-badge--brand">' + frac + " · " + dist + "</span></div>" +
+      '<span class="nz-badge nz-badge--neutral">' + frac + " · " + dist + "</span></div>" +
       '<table class="nz-table nz-table--apilable nz-table--striped"><thead><tr><th>Turno</th><th>Fracción</th>' +
       '<th class="nz-table__num">Paradas</th><th class="nz-table__num">Carga</th><th class="nz-table__num">Ocupación</th>' +
       '<th class="nz-table__num">km</th><th class="nz-table__num">Duración</th><th class="nz-table__num">kg/km</th>' +
